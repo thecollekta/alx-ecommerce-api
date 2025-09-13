@@ -1,0 +1,75 @@
+# Pre-commit configuration for Django development
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks # Basic file quality checks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: debug-statements
+
+  - repo: https://github.com/psf/black # Code formatting
+    rev: 25.1.0
+    hooks:
+      - id: black
+        # For Python files
+        files: \.py$
+
+  - repo: https://github.com/pycqa/isort # Import sorting
+    rev: 6.0.1
+    hooks:
+      - id: isort
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit # Linting and additional formatting
+    rev: v0.13.0
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/mirrors-mypy # Static type checking
+    rev: v1.18.1
+    hooks:
+      - id: mypy
+        additional_dependencies:
+          [
+            django-stubs==5.2.2,
+            djangorestframework-stubs==3.16.2,
+            types-requests==2.32.4,
+            types-redis==4.6.0,
+          ]
+
+  - repo: https://github.com/PyCQA/bandit # Security scanning
+    rev: 1.8.6
+    hooks:
+      - id: bandit
+        args: [-r, ., -f, json, -o, bandit-report.json]
+        exclude: ^tests/
+
+  - repo: https://github.com/pyupio/safety # Dependency vulnerability checking
+    rev: 3.6.1
+    hooks:
+      - id: safety
+        args: [check, --full-report]
+
+  - repo: local # Django-specific checks and tests
+    hooks:
+      - id: django-check
+        name: Django System Check
+        entry: python manage.py check --deploy
+        language: system
+        pass_filenames: false
+
+      - id: django-migrations
+        name: Django Migration Check
+        entry: python manage.py makemigrations --check --dry-run
+        language: system
+        pass_filenames: false
+
+      - id: security-audit
+        name: Security Audit
+        entry: python -m safety check --full-report
+        language: system
+        pass_filenames: false
