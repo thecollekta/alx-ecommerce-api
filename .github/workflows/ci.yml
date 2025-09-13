@@ -20,7 +20,7 @@ env:
 
 jobs:
   test:
-    name: Test with Python ${{ env.PYTHON_VERSION }}
+    name: Test with Python 3.13
     runs-on: ubuntu-latest
     services:
       postgres:
