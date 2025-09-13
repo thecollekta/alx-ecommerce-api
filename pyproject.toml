@@ -11,6 +11,10 @@ authors = [
   {name = "Festus Aboagye", email = "festus233@gmail.com.com"},
 ]
 readme = "README.md"
+packages = [
+    "ecommerce_backend",
+    "apps",
+]
 dependencies = [
     # Core Django dependencies
     "Django==5.2.6",
