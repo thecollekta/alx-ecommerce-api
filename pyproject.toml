@@ -11,10 +11,6 @@ authors = [
   {name = "Festus Aboagye", email = "festus233@gmail.com.com"},
 ]
 readme = "README.md"
-packages = [
-    "ecommerce_backend",
-    "apps",
-]
 dependencies = [
     # Core Django dependencies
     "Django==5.2.6",
@@ -116,6 +112,11 @@ docs = [
     "sphinx-rtd-theme>=3.0.2",
     "docutils>=0.21.2",
 ]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ecommerce_backend*", "apps*"]
+exclude = ["tests*", "docs*", "scripts*", "venv*", ".github*", "requirements*"]
 
 [tool.ruff]
 target-version = "py313"
