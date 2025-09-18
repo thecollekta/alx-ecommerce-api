@@ -48,9 +48,19 @@ CACHES = {
     },
     "sessions": {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        "LOCATION": "sessions",
     },
 }
+
+# CORS settings for testing
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # Default React dev server
+    "http://127.0.0.1:3000",  # Alternative localhost
+]
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = False  # For security, only allow the origins listed above
+
+# For testing, we can also allow all origins if needed
+# CORS_ALLOW_ALL_ORIGINS = True  # Uncomment if you need to allow all origins during testing
 
 # Configure session engine to use cache
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
