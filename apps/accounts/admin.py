@@ -5,12 +5,18 @@ Django admin configuration for user management.
 Provides a comprehensive interface for managing users and their profiles.
 """
 
+from typing import ClassVar
+
 from django.contrib import admin
+from django.contrib import messages
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from django.contrib.auth.forms import UserChangeForm, UserCreationForm
+from django.contrib.auth.forms import UserChangeForm
+from django.contrib.auth.forms import UserCreationForm
 from django.utils.html import format_html
 
-from apps.accounts.models import User, UserProfile
+from apps.accounts.models import User
+from apps.accounts.models import UserProfile
+from apps.accounts.tasks import send_welcome_email_task
 
 
 class CustomUserCreationForm(UserCreationForm):
@@ -18,7 +24,7 @@ class CustomUserCreationForm(UserCreationForm):
     Custom user creation form for the admin.
     """
 
-    class Meta(UserCreationForm.Meta):  # type: ignore
+    class Meta(UserCreationForm.Meta):
         model = User
         fields = ("username", "email", "user_type")
 
@@ -28,7 +34,7 @@ class CustomUserChangeForm(UserChangeForm):
     Custom user change form for the admin.
     """
 
-    class Meta(UserChangeForm.Meta):  # type: ignore
+    class Meta(UserChangeForm.Meta):
         model = User
         fields = "__all__"
 
@@ -61,7 +67,7 @@ class UserAdmin(BaseUserAdmin):
 
     form = CustomUserChangeForm
     add_form = CustomUserCreationForm
-    inlines = [UserProfileInline]
+    inlines: ClassVar[list[type[UserProfileInline]]] = [UserProfileInline]
 
     # List display configuration
     list_display = (
@@ -126,7 +132,7 @@ class UserAdmin(BaseUserAdmin):
                     "account_status",
                     "email_verified",
                     "email_verification_token",
-                )
+                ),
             },
         ),
         (
@@ -189,52 +195,8 @@ class UserAdmin(BaseUserAdmin):
         "id",
     )
 
-    # Custom display methods
-    def account_status_display(self, obj):
-        """Display account status with color coding."""
-        colors = {
-            "active": "green",
-            "suspended": "red",
-            "pending": "orange",
-        }
-        color = colors.get(obj.account_status, "black")
-        return format_html(
-            '<span style="color: {};">{}</span>',
-            color,
-            obj.get_account_status_display(),
-        )
-
-    account_status_display.short_description = "Account Status"  # type: ignore
-    account_status_display.admin_order_field = "account_status"  # type: ignore
-
-    def email_verified_display(self, obj):
-        """Display email verification status with icons."""
-        if obj.email_verified:
-            return format_html('<span style="color: green;">Verified</span>')
-        else:
-            return format_html('<span style="color: red;">Not Verified</span>')
-
-    email_verified_display.short_description = "Email Status"  # type: ignore
-    email_verified_display.admin_order_field = "email_verified"  # type: ignore
-
-    def date_joined_display(self, obj):
-        """Display formatted join date."""
-        return obj.date_joined.strftime("%Y-%m-%d %H:%M")
-
-    date_joined_display.short_description = "Joined"  # type: ignore
-    date_joined_display.admin_order_field = "date_joined"  # type: ignore
-
-    def last_login_display(self, obj):
-        """Display formatted last login date."""
-        if obj.last_login:
-            return obj.last_login.strftime("%Y-%m-%d %H:%M")
-        return "Never"
-
-    last_login_display.short_description = "Last Login"  # type: ignore
-    last_login_display.admin_order_field = "last_login"  # type: ignore
-
     # Custom actions
-    actions = [
+    actions: ClassVar[list[str]] = [
         "activate_users",
         "suspend_users",
         "verify_emails",
@@ -251,7 +213,7 @@ class UserAdmin(BaseUserAdmin):
 
         self.message_user(request, f"{count} user(s) have been activated successfully.")
 
-    activate_users.short_description = "Activate selected users"  # type: ignore
+    activate_users.short_description = "Activate selected users"
 
     def suspend_users(self, request, queryset):
         """Bulk suspend selected users."""
@@ -266,30 +228,78 @@ class UserAdmin(BaseUserAdmin):
 
         self.message_user(request, f"{count} user(s) have been suspended successfully.")
 
-    suspend_users.short_description = "Suspend selected users"  # type: ignore
+    suspend_users.short_description = "Suspend selected users"
 
     def verify_emails(self, request, queryset):
         """Bulk verify email addresses."""
         count = queryset.filter(email_verified=False).update(
-            email_verified=True, email_verification_token=""
+            email_verified=True,
+            email_verification_token="",
         )
 
         self.message_user(request, f"{count} email(s) have been verified successfully.")
 
-    verify_emails.short_description = "Verify selected user emails"  # type: ignore
+    verify_emails.short_description = "Verify selected user emails"
 
     def send_welcome_emails(self, request, queryset):
-        """Send welcome emails to selected users."""
-        # This would integrate with your email service
-        count = queryset.count()
+        """Send welcome emails to selected users asynchronously."""
+        count = 0
+        for user in queryset:
+            if user.is_active and user.email:
+                send_welcome_email_task.delay(user.id)
+                count += 1
 
-        # TODO: Implement email sending logic
-        # for user in queryset:
-        #     send_welcome_email(user)
+        if count == 1:
+            message = "1 welcome email has been queued for sending."
+        else:
+            message = f"{count} welcome emails have been queued for sending."
 
-        self.message_user(request, f"Welcome emails queued for {count} user(s).")
+        self.message_user(request, message, messages.SUCCESS)
 
-    send_welcome_emails.short_description = "Send welcome emails"  # type: ignore
+    send_welcome_emails.short_description = "Send welcome emails"
+
+    # Custom display methods
+    def account_status_display(self, obj):
+        """Display account status with color coding."""
+        colors = {
+            "active": "green",
+            "suspended": "red",
+            "pending": "orange",
+        }
+        color = colors.get(obj.account_status, "black")
+        return format_html(
+            '<span style="color: {};">{}</span>',
+            color,
+            obj.get_account_status_display(),
+        )
+
+    account_status_display.short_description = "Account Status"
+    account_status_display.admin_order_field = "account_status"
+
+    def email_verified_display(self, obj):
+        """Display email verification status with icons."""
+        if obj.email_verified:
+            return format_html('<span style="color: green;">Verified</span>')
+        return format_html('<span style="color: red;">Not Verified</span>')
+
+    email_verified_display.short_description = "Email Status"
+    email_verified_display.admin_order_field = "email_verified"
+
+    def date_joined_display(self, obj):
+        """Display formatted join date."""
+        return obj.date_joined.strftime("%Y-%m-%d %H:%M")
+
+    date_joined_display.short_description = "Joined"
+    date_joined_display.admin_order_field = "date_joined"
+
+    def last_login_display(self, obj):
+        """Display formatted last login date."""
+        if obj.last_login:
+            return obj.last_login.strftime("%Y-%m-%d %H:%M")
+        return "Never"
+
+    last_login_display.short_description = "Last Login"
+    last_login_display.admin_order_field = "last_login"
 
     # Override get_queryset to optimize database queries
     def get_queryset(self, request):
@@ -361,15 +371,15 @@ class UserProfileAdmin(admin.ModelAdmin):
         """Display user's email address."""
         return obj.user.email
 
-    user_email.short_description = "Email"  # type: ignore
-    user_email.admin_order_field = "user__email"  # type: ignore
+    user_email.short_description = "Email"
+    user_email.admin_order_field = "user__email"
 
     def user_type(self, obj):
         """Display user's type."""
         return obj.user.get_user_type_display()
 
-    user_type.short_description = "User Type"  # type: ignore
-    user_type.admin_order_field = "user__user_type"  # type: ignore
+    user_type.short_description = "User Type"
+    user_type.admin_order_field = "user__user_type"
 
     # Optimize queryset
     def get_queryset(self, request):

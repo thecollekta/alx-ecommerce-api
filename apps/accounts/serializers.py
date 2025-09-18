@@ -7,17 +7,22 @@ Handles user registration, login, profile management with security features.
 
 import re
 from datetime import timedelta
+from typing import ClassVar
 
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.tokens import default_token_generator
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from django.utils.encoding import force_str
+from django.utils.http import urlsafe_base64_decode
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.accounts.models import User
-from apps.core.serializers import BaseModelSerializer, SanitizedCharField
+from apps.core.serializers import BaseModelSerializer
+from apps.core.serializers import SanitizedCharField
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -41,7 +46,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     # Sanitized input fields
     username = SanitizedCharField(
-        max_length=150, help_text=_("Unique username for login")
+        max_length=150,
+        help_text=_("Unique username for login"),
     )
     email = serializers.EmailField(help_text=_("Valid email address"))
     first_name = SanitizedCharField(max_length=150, required=False, allow_blank=True)
@@ -55,7 +61,9 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     # Address fields
     address_line_1 = SanitizedCharField(
-        max_length=255, required=False, allow_blank=True
+        max_length=255,
+        required=False,
+        allow_blank=True,
     )
     address_line_2 = SanitizedCharField(
         max_length=255,
@@ -70,12 +78,13 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     # Terms and conditions
     accept_terms = serializers.BooleanField(
-        write_only=True, help_text=_("Must accept terms and conditions")
+        write_only=True,
+        help_text=_("Must accept terms and conditions"),
     )
 
-    class Meta:  # type: ignore
+    class Meta:
         model = User
-        fields = [
+        fields: ClassVar[list[str]] = [
             "username",
             "email",
             "password",
@@ -91,18 +100,18 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             "country",
             "accept_terms",
         ]
-        extra_kwargs = {"password": {"write_only": True}}
+        extra_kwargs: ClassVar[dict] = {"password": {"write_only": True}}
 
     def validate_username(self, value):
         """Validate username format and uniqueness."""
         if not re.match(r"^[a-zA-Z0-9_]+$", value):
             raise serializers.ValidationError(
-                _("Username can only contain letters, numbers, and underscores.")
+                _("Username can only contain letters, numbers, and underscores."),
             )
 
         if User.objects.filter(username__iexact=value).exists():
             raise serializers.ValidationError(
-                _("A user with this username already exists.")
+                _("A user with this username already exists."),
             )
 
         return value.lower()
@@ -111,7 +120,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         """Validate email uniqueness."""
         if User.objects.filter(email__iexact=value).exists():
             raise serializers.ValidationError(
-                _("A user with this email address already exists.")
+                _("A user with this email address already exists."),
             )
 
         return value.lower()
@@ -121,20 +130,20 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         try:
             validate_password(value)
         except ValidationError as e:
-            raise serializers.ValidationError(list(e.messages))
+            raise serializers.ValidationError(list(e.messages)) from e
 
         # Additional custom password validation
         if not re.search(r"[A-Z]", value):
             raise serializers.ValidationError(
-                _("Password must contain at least one uppercase letter.")
+                _("Password must contain at least one uppercase letter."),
             )
         if not re.search(r"[a-z]", value):
             raise serializers.ValidationError(
-                _("Password must contain at least one lowercase letter.")
+                _("Password must contain at least one lowercase letter."),
             )
         if not re.search(r"\d", value):
             raise serializers.ValidationError(
-                _("Password must contain at least one digit.")
+                _("Password must contain at least one digit."),
             )
 
         return value
@@ -143,7 +152,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         """Validate phone number format."""
         if value and not re.match(r"^\+?1?\d{9,15}$", value):
             raise serializers.ValidationError(
-                _("Phone number must be in format: +1234567890")
+                _("Phone number must be in format: +1234567890"),
             )
         return value
 
@@ -151,15 +160,15 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         """Ensure terms and conditions are accepted."""
         if not value:
             raise serializers.ValidationError(
-                _("You must accept the terms and conditions to register.")
+                _("You must accept the terms and conditions to register."),
             )
         return value
 
-    def validate(self, data):  # type: ignore
+    def validate(self, data):
         """Cross-field validation."""
         if data["password"] != data["password_confirm"]:
             raise serializers.ValidationError(
-                {"password_confirm": _("Password confirmation doesn't match.")}
+                {"password_confirm": _("Password confirmation doesn't match.")},
             )
 
         return data
@@ -181,8 +190,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         )
 
         # Generate email verification token
-        user.generate_email_verification_token()
-
         return user
 
 
@@ -193,13 +200,15 @@ class UserLoginSerializer(serializers.Serializer):
 
     email = serializers.EmailField(help_text=_("Email address"))
     password = serializers.CharField(
-        style={"input_type": "password"}, help_text=_("Your password")
+        style={"input_type": "password"},
+        help_text=_("Your password"),
     )
     remember_me = serializers.BooleanField(
-        default=False, help_text=_("Keep me logged in")
+        default=False,
+        help_text=_("Keep me logged in"),
     )
 
-    def validate(self, data):  # type: ignore
+    def validate(self, data):
         """
         Authenticate user and return tokens.
         """
@@ -209,7 +218,7 @@ class UserLoginSerializer(serializers.Serializer):
 
         if not email or not password:
             raise serializers.ValidationError(
-                {"detail": _("Both email and password are required.")}
+                {"detail": _("Both email and password are required.")},
             )
 
         # Authenticate user using email
@@ -221,12 +230,12 @@ class UserLoginSerializer(serializers.Serializer):
 
         if not user:
             raise serializers.ValidationError(
-                {"detail": _("Invalid email or password.")}
+                {"detail": _("Invalid email or password.")},
             )
 
         if not user.is_active:
             raise serializers.ValidationError(
-                {"detail": _("This account is inactive.")}
+                {"detail": _("This account is inactive.")},
             )
 
         # Generate tokens
@@ -262,15 +271,21 @@ class UserProfileSerializer(BaseModelSerializer):
     first_name = SanitizedCharField(max_length=150, required=False)
     last_name = SanitizedCharField(max_length=150, required=False)
     phone_number = serializers.CharField(
-        max_length=20, required=False, allow_blank=True
+        max_length=20,
+        required=False,
+        allow_blank=True,
     )
 
     # Address fields
     address_line_1 = SanitizedCharField(
-        max_length=255, required=False, allow_blank=True
+        max_length=255,
+        required=False,
+        allow_blank=True,
     )
     address_line_2 = SanitizedCharField(
-        max_length=255, required=False, allow_blank=True
+        max_length=255,
+        required=False,
+        allow_blank=True,
     )
     city = SanitizedCharField(max_length=100, required=False, allow_blank=True)
     state = SanitizedCharField(max_length=100, required=False, allow_blank=True)
@@ -281,16 +296,20 @@ class UserProfileSerializer(BaseModelSerializer):
     full_name = serializers.CharField(read_only=True)
     full_address = serializers.CharField(read_only=True)
     is_email_verified = serializers.BooleanField(
-        source="email_verified", read_only=True
+        source="email_verified",
+        read_only=True,
     )
 
     # Profile fields (from UserProfile model)
     bio = serializers.CharField(source="profile.bio", required=False, allow_blank=True)
     date_of_birth = serializers.DateField(
-        source="profile.date_of_birth", required=False, allow_null=True
+        source="profile.date_of_birth",
+        required=False,
+        allow_null=True,
     )
     newsletter_subscription = serializers.BooleanField(
-        source="profile.newsletter_subscription", required=False
+        source="profile.newsletter_subscription",
+        required=False,
     )
 
     # Admin-only fields
@@ -300,7 +319,7 @@ class UserProfileSerializer(BaseModelSerializer):
     last_login = serializers.DateTimeField(read_only=True, format="%Y-%m-%d %H:%M:%S")
 
     # Override sensitive fields for role-based access
-    sensitive_fields = [
+    sensitive_fields: ClassVar[list[str]] = [
         "account_status",
         "user_type",
         "date_joined",
@@ -312,7 +331,7 @@ class UserProfileSerializer(BaseModelSerializer):
 
     class Meta(BaseModelSerializer.Meta):
         model = User
-        fields = [
+        fields: ClassVar[list[str]] = [
             *BaseModelSerializer.Meta.fields,
             "username",
             "email",
@@ -336,7 +355,7 @@ class UserProfileSerializer(BaseModelSerializer):
             "date_joined",
             "last_login",
         ]
-        read_only_fields = [
+        read_only_fields: ClassVar[list[str]] = [
             *BaseModelSerializer.Meta.read_only_fields,
             "username",
             "full_name",
@@ -349,10 +368,10 @@ class UserProfileSerializer(BaseModelSerializer):
         user = self.instance
         if (
             user
-            and User.objects.filter(email__iexact=value).exclude(id=user.id).exists()  # type: ignore
+            and User.objects.filter(email__iexact=value).exclude(id=user.id).exists()
         ):
             raise serializers.ValidationError(
-                _("A user with this email address already exists.")
+                _("A user with this email address already exists."),
             )
         return value.lower()
 
@@ -369,8 +388,8 @@ class UserProfileSerializer(BaseModelSerializer):
         # Update profile fields
         if profile_data:
             for attr, value in profile_data.items():
-                setattr(instance.profile, attr, value)  # type: ignore
-            instance.profile.save()  # type: ignore
+                setattr(instance.profile, attr, value)
+            instance.profile.save()
 
         return instance
 
@@ -381,7 +400,8 @@ class PasswordChangeSerializer(serializers.Serializer):
     """
 
     old_password = serializers.CharField(
-        style={"input_type": "password"}, help_text=_("Current password")
+        style={"input_type": "password"},
+        help_text=_("Current password"),
     )
     new_password = serializers.CharField(
         style={"input_type": "password"},
@@ -389,7 +409,8 @@ class PasswordChangeSerializer(serializers.Serializer):
         help_text=_("New password (minimum 8 characters)"),
     )
     new_password_confirm = serializers.CharField(
-        style={"input_type": "password"}, help_text=_("Confirm new password")
+        style={"input_type": "password"},
+        help_text=_("Confirm new password"),
     )
 
     def validate_old_password(self, value):
@@ -404,28 +425,28 @@ class PasswordChangeSerializer(serializers.Serializer):
         try:
             validate_password(value, self.context["request"].user)
         except ValidationError as e:
-            raise serializers.ValidationError(list(e.messages))
+            raise serializers.ValidationError(list(e.messages)) from e
         return value
 
-    def validate(self, data):  # type: ignore
+    def validate(self, data):
         """Cross-field validation."""
         if data["new_password"] != data["new_password_confirm"]:
             raise serializers.ValidationError(
-                {"new_password_confirm": _("New password confirmation doesn't match.")}
+                {"new_password_confirm": _("New password confirmation doesn't match.")},
             )
 
         if data["old_password"] == data["new_password"]:
             raise serializers.ValidationError(
                 {
                     "new_password": _(
-                        "New password must be different from current password."
-                    )
-                }
+                        "New password must be different from current password.",
+                    ),
+                },
             )
 
         return data
 
-    def save(self):  # type: ignore
+    def save(self):
         """Change the user's password."""
         user = self.context["request"].user
         user.set_password(self.validated_data["new_password"])
@@ -439,7 +460,7 @@ class PasswordResetSerializer(serializers.Serializer):
     """
 
     email = serializers.EmailField(
-        help_text=_("Email address associated with your account")
+        help_text=_("Email address associated with your account"),
     )
 
     def validate_email(self, value):
@@ -454,6 +475,69 @@ class PasswordResetSerializer(serializers.Serializer):
             # But still raise an error to prevent enumeration
             raise serializers.ValidationError(
                 _(
-                    "If this email exists in our system, you will receive password reset instructions."
-                )
+                    "If this email exists in our system, you will receive password reset instructions.",
+                ),
+            ) from None
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    """
+    Serializer for password reset confirmation.
+    """
+
+    uid = serializers.CharField()
+    token = serializers.CharField()
+    new_password = serializers.CharField(style={"input_type": "password"}, min_length=8)
+
+    def validate_new_password(self, value):
+        validate_password(value)
+        return value
+
+
+class EmailVerificationSerializer(serializers.Serializer):
+    """
+    Serializer for verifying a user's email using UID and token.
+    Validates the link and, on save, marks the email as verified.
+    """
+
+    uid = serializers.CharField()
+    token = serializers.CharField()
+
+    def validate(self, attrs):
+        uid = attrs.get("uid")
+        token = attrs.get("token")
+
+        if not uid or not token:
+            raise serializers.ValidationError(
+                {"detail": _("Token and UID are required.")},
             )
+
+        try:
+            user_id = force_str(urlsafe_base64_decode(uid))
+            user = User.objects.get(pk=user_id)
+        except Exception:
+            raise serializers.ValidationError({"uid": _("Invalid verification link.")})
+
+        if not default_token_generator.check_token(user, token):
+            raise serializers.ValidationError(
+                {"token": _("Invalid or expired verification token.")},
+            )
+
+        attrs["user"] = user
+        return attrs
+
+    def save(self):
+        user = self.validated_data["user"]
+        if not user.email_verified:
+            user.email_verified = True
+            if (
+                getattr(user, "account_status", None)
+                and user.account_status.lower() == "pending"
+            ):
+                user.account_status = "active"
+            user.save(
+                update_fields=["email_verified", "updated_at", "account_status"]
+                if hasattr(user, "account_status")
+                else ["email_verified", "updated_at"],
+            )
+        return user

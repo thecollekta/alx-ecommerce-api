@@ -5,6 +5,7 @@ import os
 from celery import Celery
 from django.conf import settings
 
+
 # Set the default Django settings module for the 'celery' program.
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "ecommerce_backend.settings")
 
@@ -25,12 +26,7 @@ if os.name == "nt":
 
 # Configure periodic tasks (beat schedule)
 app.conf.beat_schedule = {
-    # Add your periodic tasks here
-    # Example:
-    # 'check-expired-sessions': {
-    #     'task': 'apps.accounts.tasks.check_expired_sessions',
-    #     'schedule': 3600.0,  # Run every hour
-    # },
+    # Add your periodic tasks here as needed
 }
 
 # Configure timezone
@@ -48,4 +44,4 @@ app.conf.worker_redirect_stdouts = False
 
 @app.task(bind=True)
 def debug_task(self):
-    print(f"Request: {self.request!r}")
+    pass

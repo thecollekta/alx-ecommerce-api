@@ -5,30 +5,50 @@ User authentication views for the e-commerce API.
 Handles user registration, login, profile management, and password operations.
 """
 
+from typing import ClassVar
+
 import structlog
+from django.conf import settings
+from django.contrib.auth.tokens import default_token_generator
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.utils.encoding import force_bytes
+from django.utils.encoding import force_str
+from django.utils.http import urlsafe_base64_decode
+from django.utils.http import urlsafe_base64_encode
 from django.utils.translation import gettext_lazy as _
-from drf_spectacular.openapi import OpenApiExample  # type: ignore
-from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
-from rest_framework import permissions, status
+from drf_spectacular.openapi import OpenApiExample
+from drf_spectacular.utils import OpenApiResponse
+from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema_view
+from rest_framework import permissions
+from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken
+from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from apps.accounts import serializers
 from apps.accounts.models import User
-from apps.accounts.serializers import (
-    PasswordChangeSerializer,
-    PasswordResetSerializer,
-    UserLoginSerializer,
-    UserProfileSerializer,
-    UserRegistrationSerializer,
-)
-from apps.core.throttling import CreateAccountRateThrottle, LoginRateThrottle
+from apps.accounts.serializers import PasswordChangeSerializer
+from apps.accounts.serializers import PasswordResetConfirmSerializer
+from apps.accounts.serializers import PasswordResetSerializer
+from apps.accounts.serializers import UserLoginSerializer
+from apps.accounts.serializers import UserProfileSerializer
+from apps.accounts.serializers import UserRegistrationSerializer
+from apps.accounts.tasks import send_verification_email
+from apps.core.throttling import CreateAccountRateThrottle
+from apps.core.throttling import LoginRateThrottle
 from apps.core.views import BaseViewSet
 
+
 logger = structlog.get_logger(__name__)
+
+# HTTP status codes as constants
+HTTP_200_OK = status.HTTP_200_OK
 
 
 @extend_schema_view(
@@ -69,7 +89,7 @@ logger = structlog.get_logger(__name__)
                             "next_step": "email_verification",
                         },
                         description="Successful registration response",
-                    )
+                    ),
                 ],
             ),
             400: OpenApiResponse(
@@ -91,7 +111,7 @@ logger = structlog.get_logger(__name__)
                         "Validation Error - Terms Not Accepted",
                         value={
                             "accept_terms": [
-                                "You must accept the terms and conditions."
+                                "You must accept the terms and conditions.",
                             ],
                         },
                     ),
@@ -103,9 +123,9 @@ logger = structlog.get_logger(__name__)
                     OpenApiExample(
                         "Rate Limited",
                         value={
-                            "detail": "Request was throttled. Expected available in 60 seconds."
+                            "detail": "Request was throttled. Expected available in 60 seconds.",
                         },
-                    )
+                    ),
                 ],
             ),
         },
@@ -129,9 +149,9 @@ logger = structlog.get_logger(__name__)
                     "accept_terms": True,
                 },
                 request_only=True,
-            )
+            ),
         ],
-    )
+    ),
 )
 class UserRegistrationView(APIView):
     """
@@ -161,9 +181,11 @@ class UserRegistrationView(APIView):
     - `429 Too Many Requests`: Rate limit exceeded
     """
 
-    permission_classes = [permissions.AllowAny]
-    throttle_classes = [CreateAccountRateThrottle]
-    serializer_class = UserRegistrationSerializer
+    permission_classes: ClassVar[list[type[permissions.BasePermission]]] = [
+        permissions.AllowAny,
+    ]
+    throttle_classes: ClassVar[list[type[object]]] = [CreateAccountRateThrottle]
+    serializer_class: type[UserRegistrationSerializer] = UserRegistrationSerializer
 
     def post(self, request):
         """
@@ -205,25 +227,24 @@ class UserRegistrationView(APIView):
 
                 return Response(response_data, status=status.HTTP_201_CREATED)
 
-            else:
-                # Log registration failures
-                logger.warning(
-                    f"User registration failed: {serializer.errors}",
-                    extra={
-                        "ip_address": request.META.get("REMOTE_ADDR"),
-                        "errors": serializer.errors,
-                    },
-                )
+            # Log registration failures
+            logger.warning(
+                f"User registration failed: {serializer.errors}",
+                extra={
+                    "ip_address": request.META.get("REMOTE_ADDR"),
+                    "errors": serializer.errors,
+                },
+            )
 
-                return Response(
-                    {
-                        "message": _(
-                            "Registration failed. Please check the errors below."
-                        ),
-                        "errors": serializer.errors,
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+            return Response(
+                {
+                    "message": _(
+                        "Registration failed. Please check the errors below.",
+                    ),
+                    "errors": serializer.errors,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         except Exception as e:
             logger.error(
@@ -247,9 +268,11 @@ class UserLoginView(APIView):
     Supports username or email login.
     """
 
-    permission_classes = [permissions.AllowAny]
-    throttle_classes = [LoginRateThrottle]
-    serializer_class = UserLoginSerializer
+    permission_classes: ClassVar[list[type[permissions.BasePermission]]] = [
+        permissions.AllowAny,
+    ]
+    throttle_classes: ClassVar[list[type[object]]] = [LoginRateThrottle]
+    serializer_class: type[UserLoginSerializer] = UserLoginSerializer
 
     @extend_schema(
         tags=["Authentication"],
@@ -271,7 +294,7 @@ class UserLoginView(APIView):
                                 "last_name": "Nkrumah",
                             },
                         },
-                    )
+                    ),
                 ],
             ),
             400: OpenApiResponse(description="Invalid credentials"),
@@ -290,7 +313,8 @@ class UserLoginView(APIView):
         """
         try:
             serializer = self.serializer_class(
-                data=request.data, context={"request": request}
+                data=request.data,
+                context={"request": request},
             )
             if not serializer.is_valid():
                 return Response(
@@ -341,7 +365,9 @@ class UserLogoutView(APIView):
     Blacklists the refresh token to prevent reuse.
     """
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes: ClassVar[list[type[permissions.BasePermission]]] = [
+        permissions.IsAuthenticated,
+    ]
 
     @extend_schema(
         tags=["Authentication"],
@@ -352,31 +378,33 @@ class UserLogoutView(APIView):
                     "refresh": {
                         "type": "string",
                         "description": "Refresh token to blacklist",
-                    }
+                    },
                 },
                 "required": ["refresh"],
                 "example": {"refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."},
-            }
+            },
         },
         responses={
             205: OpenApiResponse(
                 description="Successfully logged out",
                 examples=[
                     OpenApiExample(
-                        "Logout Success", value={"detail": "Successfully logged out."}
-                    )
+                        "Logout Success",
+                        value={"detail": "Successfully logged out."},
+                    ),
                 ],
             ),
             400: OpenApiResponse(
                 description="Invalid request or token",
                 examples=[
                     OpenApiExample(
-                        "Invalid Token", value={"detail": "Refresh token is required."}
-                    )
+                        "Invalid Token",
+                        value={"detail": "Refresh token is required."},
+                    ),
                 ],
             ),
             401: OpenApiResponse(
-                description="Authentication credentials were not provided"
+                description="Authentication credentials were not provided",
             ),
         },
         description="Logout user by blacklisting the refresh token. This will invalidate the token and prevent its future use.",
@@ -430,10 +458,10 @@ class UserLogoutView(APIView):
         responses={
             200: UserProfileSerializer(many=True),
             401: OpenApiResponse(
-                description="Authentication credentials were not provided"
+                description="Authentication credentials were not provided",
             ),
             403: OpenApiResponse(
-                description="You do not have permission to perform this action"
+                description="You do not have permission to perform this action",
             ),
         },
     ),
@@ -443,10 +471,10 @@ class UserLogoutView(APIView):
         responses={
             200: UserProfileSerializer,
             401: OpenApiResponse(
-                description="Authentication credentials were not provided"
+                description="Authentication credentials were not provided",
             ),
             403: OpenApiResponse(
-                description="You do not have permission to view this profile"
+                description="You do not have permission to view this profile",
             ),
             404: OpenApiResponse(description="Profile not found"),
         },
@@ -459,10 +487,10 @@ class UserLogoutView(APIView):
             200: UserProfileSerializer,
             400: OpenApiResponse(description="Invalid input data"),
             401: OpenApiResponse(
-                description="Authentication credentials were not provided"
+                description="Authentication credentials were not provided",
             ),
             403: OpenApiResponse(
-                description="You do not have permission to update this profile"
+                description="You do not have permission to update this profile",
             ),
             404: OpenApiResponse(description="Profile not found"),
         },
@@ -475,10 +503,10 @@ class UserLogoutView(APIView):
             200: UserProfileSerializer,
             400: OpenApiResponse(description="Invalid input data"),
             401: OpenApiResponse(
-                description="Authentication credentials were not provided"
+                description="Authentication credentials were not provided",
             ),
             403: OpenApiResponse(
-                description="You do not have permission to update this profile"
+                description="You do not have permission to update this profile",
             ),
             404: OpenApiResponse(description="Profile not found"),
         },
@@ -489,10 +517,10 @@ class UserLogoutView(APIView):
         responses={
             204: OpenApiResponse(description="Profile deleted successfully"),
             401: OpenApiResponse(
-                description="Authentication credentials were not provided"
+                description="Authentication credentials were not provided",
             ),
             403: OpenApiResponse(
-                description="You do not have permission to delete this profile"
+                description="You do not have permission to delete this profile",
             ),
             404: OpenApiResponse(description="Profile not found"),
         },
@@ -504,9 +532,10 @@ class UserProfileViewSet(BaseViewSet):
     Provides CRUD operations for user profiles with proper permissions.
     """
 
-    serializer_class = UserProfileSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
+    serializer_class: type[UserProfileSerializer] = UserProfileSerializer
+    permission_classes: ClassVar[list[type[permissions.BasePermission]]] = [
+        permissions.IsAuthenticated,
+    ]
     queryset = User.objects.none()
 
     def get_queryset(self):
@@ -519,9 +548,9 @@ class UserProfileViewSet(BaseViewSet):
             return User.objects.none()
 
         user = self.request.user
-        if user.is_staff:  # type: ignore
+        if user.is_staff:
             return User.objects.all()
-        return User.objects.filter(id=user.id)  # type: ignore
+        return User.objects.filter(id=user.id)
 
     def create(self, request, *args, **kwargs):
         """
@@ -532,8 +561,8 @@ class UserProfileViewSet(BaseViewSet):
             {
                 "message": _(
                     "Profile creation is not allowed through this endpoint. "
-                    "Please use the registration endpoint at /api/v1/accounts/register/"
-                )
+                    "Please use the registration endpoint at /api/v1/accounts/register/",
+                ),
             },
             status=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
@@ -551,20 +580,28 @@ class UserProfileViewSet(BaseViewSet):
         Handle PUT requests for user profile updates.
         """
         if kwargs.get("pk") == "me":
-            return self.update_me(request)  # type: ignore
-        else:
-            # For non-me updates, use standard behavior
-            return super().update(request, *args, **kwargs)
+            return self.update_me(request)
+        # For non-me updates, use standard behavior
+        return super().update(request, *args, **kwargs)
 
     def partial_update(self, request, *args, **kwargs):
-        """
-        Handle PATCH requests for user profile updates.
-        """
-        if kwargs.get("pk") == "me":
-            return self.update_me(request)  # type: ignore
-        else:
-            # For non-me updates, use standard behavior
-            return super().partial_update(request, *args, **kwargs)
+        """Handle PATCH requests for user profile updates."""
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        # Log the profile update
+        logger.info(
+            f"Profile updated for user: {instance.username}",
+            extra={
+                "user_id": str(instance.id),
+                "ip_address": request.META.get("REMOTE_ADDR"),
+                "updated_fields": list(request.data.keys()),
+            },
+        )
+
+        return Response(serializer.data)
 
     @extend_schema(
         methods=["GET"],
@@ -573,7 +610,7 @@ class UserProfileViewSet(BaseViewSet):
         responses={
             200: UserProfileSerializer,
             401: OpenApiResponse(
-                description="Authentication credentials were not provided"
+                description="Authentication credentials were not provided",
             ),
         },
     )
@@ -602,7 +639,7 @@ class UserProfileViewSet(BaseViewSet):
             200: UserProfileSerializer,
             400: OpenApiResponse(description="Invalid input data"),
             401: OpenApiResponse(
-                description="Authentication credentials were not provided"
+                description="Authentication credentials were not provided",
             ),
         },
     )
@@ -614,7 +651,9 @@ class UserProfileViewSet(BaseViewSet):
         try:
             user = request.user
             serializer = self.get_serializer(
-                user, data=request.data, partial=request.method == "PATCH"
+                user,
+                data=request.data,
+                partial=request.method == "PATCH",
             )
 
             if serializer.is_valid():
@@ -629,17 +668,16 @@ class UserProfileViewSet(BaseViewSet):
                     {
                         "message": _("Profile updated successfully"),
                         "user": serializer.data,
-                    }
+                    },
                 )
 
-            else:
-                return Response(
-                    {
-                        "message": _("Profile update failed"),
-                        "errors": serializer.errors,
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+            return Response(
+                {
+                    "message": _("Profile update failed"),
+                    "errors": serializer.errors,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         except Exception as e:
             logger.error(f"Error updating profile: {e}")
@@ -657,7 +695,7 @@ class UserProfileViewSet(BaseViewSet):
             200: UserProfileSerializer,
             400: OpenApiResponse(description="Invalid input data"),
             401: OpenApiResponse(
-                description="Authentication credentials were not provided"
+                description="Authentication credentials were not provided",
             ),
         },
     )
@@ -669,7 +707,9 @@ class UserProfileViewSet(BaseViewSet):
         try:
             user = request.user
             serializer = self.get_serializer(
-                user, data=request.data, partial=request.method == "PATCH"
+                user,
+                data=request.data,
+                partial=request.method == "PATCH",
             )
 
             if serializer.is_valid():
@@ -684,17 +724,16 @@ class UserProfileViewSet(BaseViewSet):
                     {
                         "message": _("Profile updated successfully"),
                         "user": serializer.data,
-                    }
+                    },
                 )
 
-            else:
-                return Response(
-                    {
-                        "message": _("Profile update failed"),
-                        "errors": serializer.errors,
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+            return Response(
+                {
+                    "message": _("Profile update failed"),
+                    "errors": serializer.errors,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         except Exception as e:
             logger.error(f"Error updating profile: {e}")
@@ -715,7 +754,7 @@ class UserProfileViewSet(BaseViewSet):
                     OpenApiExample(
                         "Success",
                         value={"detail": "Password updated successfully"},
-                    )
+                    ),
                 ],
             ),
             400: OpenApiResponse(
@@ -726,14 +765,14 @@ class UserProfileViewSet(BaseViewSet):
                         value={
                             "detail": "Password change failed",
                             "errors": {
-                                "old_password": ["Current password is incorrect"]
+                                "old_password": ["Current password is incorrect"],
                             },
                         },
-                    )
+                    ),
                 ],
             ),
             401: OpenApiResponse(
-                description="Authentication credentials were not provided"
+                description="Authentication credentials were not provided",
             ),
         },
     )
@@ -755,14 +794,15 @@ class UserProfileViewSet(BaseViewSet):
         try:
             # Use PasswordChangeSerializer explicitly
             serializer = PasswordChangeSerializer(
-                data=request.data, context={"request": request}
+                data=request.data,
+                context={"request": request},
             )
 
             if not serializer.is_valid():
                 return Response(
                     {
                         "message": _(
-                            "Password change failed. Please check the errors below."
+                            "Password change failed. Please check the errors below.",
                         ),
                         "errors": serializer.errors,
                     },
@@ -784,11 +824,6 @@ class UserProfileViewSet(BaseViewSet):
             )
 
             # Invalidate all user's refresh tokens
-            from rest_framework_simplejwt.token_blacklist.models import (
-                BlacklistedToken,
-                OutstandingToken,
-            )
-            from rest_framework_simplejwt.tokens import RefreshToken
 
             # Get all outstanding tokens for the user
             tokens = OutstandingToken.objects.filter(user=user)
@@ -808,12 +843,12 @@ class UserProfileViewSet(BaseViewSet):
                         _("You have been logged out of all other devices."),
                         _("Please log in again with your new password."),
                     ],
-                }
+                },
             )
 
         except Exception as e:
             logger.error(
-                f"Error changing password for user {request.user.id}: {str(e)}",
+                f"Error changing password for user {request.user.id}: {e!s}",
                 exc_info=True,
                 extra={
                     "user_id": str(request.user.id),
@@ -823,8 +858,8 @@ class UserProfileViewSet(BaseViewSet):
             return Response(
                 {
                     "message": _(
-                        "An error occurred while changing password. Please try again later."
-                    )
+                        "An error occurred while changing password. Please try again later.",
+                    ),
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
@@ -842,10 +877,10 @@ class UserProfileViewSet(BaseViewSet):
                         "format": "email",
                         "description": "Email address to send verification to (optional - uses authenticated user's email if not provided)",
                         "example": "user@example.com",
-                    }
+                    },
                 },
                 "required": [],
-            }
+            },
         },
         responses={
             200: OpenApiResponse(
@@ -854,7 +889,7 @@ class UserProfileViewSet(BaseViewSet):
                     OpenApiExample(
                         "Success",
                         value={"message": "Verification email sent successfully"},
-                    )
+                    ),
                 ],
             ),
             400: OpenApiResponse(
@@ -863,59 +898,51 @@ class UserProfileViewSet(BaseViewSet):
                     OpenApiExample(
                         "Error",
                         value={"message": "Email is already verified"},
-                    )
+                    ),
                 ],
             ),
         },
     )
-    @action(detail=False, methods=["post"], url_path="request-verification-email")
+    @action(detail=False, methods=["post"], url_path="verify-email")
     def request_verification_email(self, request):
         """
         Request verification email to be sent.
         """
         try:
-            # Check if email is provided in request (for unauthenticated requests)
-            # If not provided, use the authenticated user's email
             email = request.data.get("email")
 
-            if email:
-                # For unauthenticated requests (e.g., user requesting verification after registration)
+            if not email and request.user.is_authenticated:
+                user = request.user
+                email = user.email  # Use the authenticated user's email
+            else:
                 try:
                     user = User.objects.get(email__iexact=email)
                 except User.DoesNotExist:
-                    return Response(
-                        {"message": _("User with this email does not exist.")},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-            else:
-                # For authenticated requests
-                if not request.user.is_authenticated:
+                    # Return 200 to prevent email enumeration
                     return Response(
                         {
                             "message": _(
-                                "Authentication required or email must be provided."
-                            )
+                                "If your email is registered, you will receive a verification email.",
+                            ),
                         },
-                        status=status.HTTP_401_UNAUTHORIZED,
+                        status=status.HTTP_200_OK,
                     )
-                user = request.user
 
             if user.email_verified:
                 return Response(
                     {"message": _("Email is already verified.")},
-                    status=status.HTTP_400_BAD_REQUEST,
+                    status=status.HTTP_200_OK,  # Changed from 400 to 200
                 )
 
-            # Generate verification token
+            # Generate and save verification token
             user.generate_email_verification_token()
+            user.save()
 
             # Send verification email
-            from apps.accounts.tasks import send_verification_email
-
-            send_verification_email.delay(user.id)  # type: ignore
+            send_verification_email.delay(user.id)
 
             logger.info(
-                f"Verification email requested for user: {user.username}",
+                f"Verification email requested for user: {user.email}",
                 extra={"user_id": str(user.id)},
             )
 
@@ -925,7 +952,7 @@ class UserProfileViewSet(BaseViewSet):
             )
 
         except Exception as e:
-            logger.error(f"Error requesting verification email: {e}")
+            logger.error(f"Error requesting verification email: {e}", exc_info=True)
             return Response(
                 {"message": _("An error occurred while requesting verification email")},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -934,7 +961,7 @@ class UserProfileViewSet(BaseViewSet):
     @extend_schema(
         methods=["POST"],
         summary="Verify email",
-        description="Verify user's email address with token.",
+        description="Verify user's email address with token and UID.",
         request={
             "application/json": {
                 "type": "object",
@@ -944,15 +971,14 @@ class UserProfileViewSet(BaseViewSet):
                         "description": "Email verification token sent to the user's email",
                         "example": "iNKR2qKEdVdWS5852xYXuDxUGuFz37qyNVSBCc2g0MnljsaP4MdDCpViNKr4CEjh",
                     },
-                    "email": {
+                    "uid": {
                         "type": "string",
-                        "format": "email",
-                        "description": "User's email address to verify",
-                        "example": "user@example.com",
+                        "description": "User ID encoded in the verification link",
+                        "example": "MjU1ZTg0MDBlLTI5YjQtNDFkNC1hNzE2LTQ0NjY1NTQ0MDAwMA",
                     },
                 },
-                "required": ["token", "email"],
-            }
+                "required": ["token", "uid"],
+            },
         },
         responses={
             200: OpenApiResponse(
@@ -961,9 +987,9 @@ class UserProfileViewSet(BaseViewSet):
                     OpenApiExample(
                         "Success",
                         value={
-                            "message": "Email verified successfully. Your account is now active."
+                            "message": "Email verified successfully. Your account is now active.",
                         },
-                    )
+                    ),
                 ],
             ),
             400: OpenApiResponse(
@@ -972,58 +998,63 @@ class UserProfileViewSet(BaseViewSet):
                     OpenApiExample(
                         "Error",
                         value={"message": "Invalid verification token"},
-                    )
+                    ),
                 ],
             ),
         },
     )
-    @action(detail=False, methods=["post"], url_path="verify-email")
+    @action(detail=False, methods=["post"], url_path="verify-email/confirm")
     def verify_email(self, request):
         """
         Verify user email address with token.
         """
         try:
             token = request.data.get("token")
-            email = request.data.get("email")
+            uid = request.data.get("uid")
 
-            if not token or not email:
+            if not token or not uid:
                 return Response(
-                    {"message": _("Token and email are required")},
+                    {"message": _("Token and UID are required")},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
             try:
-                user = User.objects.get(email__iexact=email)
+                # Decode user ID from UID
+                user_id = force_str(urlsafe_base64_decode(uid))
+                user = User.objects.get(pk=user_id)
+            except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+                user = None
 
-                if user.verify_email(token):
-                    logger.info(
-                        f"Email verified for user: {user.username}",
-                        extra={"user_id": str(user.id)},
-                    )
-
-                    return Response(
-                        {
-                            "message": _(
-                                "Email verified successfully. Your account is now active."
-                            )
-                        }
-                    )
-                else:
-                    return Response(
-                        {"message": _("Invalid verification token")},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
-            except User.DoesNotExist:
+            if user is None or not default_token_generator.check_token(user, token):
                 return Response(
-                    {"message": _("Invalid verification link")},
+                    {"message": _("Invalid or expired verification link")},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-        except Exception as e:
-            logger.error(f"Error verifying email: {e}")
+            if user.email_verified:
+                return Response(
+                    {"message": _("Email is already verified")},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Mark email as verified
+            user.email_verified = True
+            user.save()
+
+            logger.info(
+                f"Email verified for user: {user.email}",
+                extra={"user_id": str(user.id)},
+            )
+
             return Response(
-                {"message": _("An error occurred during verification")},
+                {"message": _("Email verified successfully")},
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            logger.error(f"Error verifying email: {e}", exc_info=True)
+            return Response(
+                {"message": _("An error occurred while verifying email")},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -1039,9 +1070,9 @@ class UserProfileViewSet(BaseViewSet):
                     OpenApiExample(
                         "Success",
                         value={
-                            "message": "If the email exists in our system, you will receive password reset instructions."
+                            "message": "If the email exists in our system, you will receive password reset instructions.",
                         },
-                    )
+                    ),
                 ],
             ),
             400: OpenApiResponse(
@@ -1050,7 +1081,7 @@ class UserProfileViewSet(BaseViewSet):
                     OpenApiExample(
                         "Error",
                         value={"email": ["This field is required."]},
-                    )
+                    ),
                 ],
             ),
         },
@@ -1065,13 +1096,6 @@ class UserProfileViewSet(BaseViewSet):
         For security reasons, the response does not indicate whether the email exists.
         """
         try:
-            from django.conf import settings
-            from django.contrib.auth.tokens import default_token_generator
-            from django.core.mail import send_mail
-            from django.template.loader import render_to_string
-            from django.utils.encoding import force_bytes
-            from django.utils.http import urlsafe_base64_encode
-
             serializer = PasswordResetSerializer(data=request.data)
 
             if serializer.is_valid():
@@ -1124,19 +1148,18 @@ class UserProfileViewSet(BaseViewSet):
                 return Response(
                     {
                         "message": _(
-                            "If the email exists in our system, you will receive password reset instructions."
-                        )
-                    }
+                            "If the email exists in our system, you will receive password reset instructions.",
+                        ),
+                    },
                 )
 
-            else:
-                return Response(
-                    {
-                        "message": _("Invalid email address"),
-                        "errors": serializer.errors,
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+            return Response(
+                {
+                    "message": _("Invalid email address"),
+                    "errors": serializer.errors,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         except Exception as e:
             logger.error(f"Error processing password reset: {e}", exc_info=True)
@@ -1144,6 +1167,49 @@ class UserProfileViewSet(BaseViewSet):
                 {"message": _("An error occurred. Please try again later.")},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+    @extend_schema(
+        methods=["POST"],
+        summary="Confirm password reset",
+        description="Set a new password using uid and token from the reset email.",
+        request=PasswordResetConfirmSerializer,
+        responses={200: OpenApiResponse(description="Password reset successful")},
+    )
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="reset-password/confirm",
+        permission_classes=[permissions.AllowAny],
+    )
+    def reset_password_confirm(self, request):
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                {"message": _("Invalid input"), "errors": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        uid = serializer.validated_data["uid"]
+        token = serializer.validated_data["token"]
+        new_password = serializer.validated_data["new_password"]
+        try:
+            user_id = force_str(urlsafe_base64_decode(uid))
+            user = User.objects.get(pk=user_id)
+        except Exception:
+            return Response(
+                {"message": _("Invalid reset link")},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not default_token_generator.check_token(user, token):
+            return Response(
+                {"message": _("Invalid or expired reset token")},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        user.set_password(new_password)
+        user.save(update_fields=["password", "updated_at"])
+        return Response(
+            {"message": _("Password has been reset successfully")},
+            status=status.HTTP_200_OK,
+        )
 
     @extend_schema(
         methods=["POST"],
@@ -1156,11 +1222,11 @@ class UserProfileViewSet(BaseViewSet):
                     OpenApiExample(
                         "Success",
                         value={"detail": "User activated successfully"},
-                    )
+                    ),
                 ],
             ),
             403: OpenApiResponse(
-                description="You do not have permission to perform this action"
+                description="You do not have permission to perform this action",
             ),
             404: OpenApiResponse(description="User not found"),
         },
@@ -1177,10 +1243,10 @@ class UserProfileViewSet(BaseViewSet):
         """
         try:
             user = self.get_object()
-            user.activate_account()  # type: ignore
+            user.activate_account()
 
             logger.info(
-                f"User account activated by admin: {user.username}",  # type: ignore
+                f"User account activated by admin: {user.username}",
                 extra={"user_id": user.pk, "admin_id": request.user.id},
             )
 
@@ -1195,7 +1261,7 @@ class UserProfileViewSet(BaseViewSet):
             )
         except Exception as e:
             logger.error(
-                f"Error activating user account: {str(e)}",
+                f"Error activating user account: {e!s}",
                 exc_info=True,
                 extra={"user_id": pk, "admin_id": request.user.id},
             )
@@ -1215,11 +1281,11 @@ class UserProfileViewSet(BaseViewSet):
                     OpenApiExample(
                         "Success",
                         value={"detail": "User suspended successfully"},
-                    )
+                    ),
                 ],
             ),
             403: OpenApiResponse(
-                description="You do not have permission to perform this action"
+                description="You do not have permission to perform this action",
             ),
             404: OpenApiResponse(description="User not found"),
         },
@@ -1243,14 +1309,14 @@ class UserProfileViewSet(BaseViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            user.suspend_account()  # type: ignore
+            user.suspend_account()
 
             logger.info(
-                f"User account suspended by admin: {user.username}",  # type: ignore
+                f"User account suspended by admin: {user.username}",
                 extra={"user_id": str(user.pk), "admin_id": str(request.user.id)},
             )
 
-            return Response({"message": f"User {user.username} has been suspended"})  # type: ignore
+            return Response({"message": f"User {user.username} has been suspended"})
 
         except Exception as e:
             logger.error(f"Error suspending user: {e}")
@@ -1277,10 +1343,10 @@ class UserProfileViewSet(BaseViewSet):
                     "type": "string",
                     "description": "The refresh token issued during login",
                     "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-                }
+                },
             },
             "required": ["refresh"],
-        }
+        },
     },
     responses={
         200: OpenApiResponse(
@@ -1380,7 +1446,7 @@ class CustomTokenRefreshView(TokenRefreshView):
         """
         response = super().post(request, *args, **kwargs)
 
-        if response.status_code == 200:
+        if response.status_code == HTTP_200_OK:
             logger.info(
                 "Token refreshed successfully",
                 extra={"ip_address": request.META.get("REMOTE_ADDR")},

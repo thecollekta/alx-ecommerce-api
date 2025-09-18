@@ -5,6 +5,7 @@ Base models for the e-commerce application.
 Provides common functionality that can be inherited by other models.
 """
 
+import typing
 import uuid
 
 from django.conf import settings
@@ -25,11 +26,13 @@ class AuditStampedModelBase(models.Model):
     )
 
     created_at: models.DateTimeField = models.DateTimeField(
-        auto_now_add=True, help_text="When this record was created"
+        auto_now_add=True,
+        help_text="When this record was created",
     )
 
     updated_at: models.DateTimeField = models.DateTimeField(
-        auto_now=True, help_text="When this record was last updated"
+        auto_now=True,
+        help_text="When this record was last updated",
     )
 
     created_by: models.ForeignKey = models.ForeignKey(
@@ -51,12 +54,13 @@ class AuditStampedModelBase(models.Model):
     )
 
     is_active: models.BooleanField = models.BooleanField(
-        default=True, help_text="Whether this record is active"
+        default=True,
+        help_text="Whether this record is active",
     )
 
     class Meta:
         abstract = True
-        ordering = ["-created_at"]
+        ordering: typing.ClassVar[list[str]] = ["-created_at"]
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__} {self.id}"

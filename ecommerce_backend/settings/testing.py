@@ -2,13 +2,14 @@
 
 import logging
 
-from .base import *  # noqa
+from .base import *
+
 
 DEBUG = False
 TESTING = True
 
 # Disable rate limiting during testing
-REST_FRAMEWORK.update(  # noqa: F405
+REST_FRAMEWORK.update(
     {
         "DEFAULT_THROTTLE_CLASSES": [],
         "DEFAULT_THROTTLE_RATES": {
@@ -18,7 +19,7 @@ REST_FRAMEWORK.update(  # noqa: F405
             "login": None,
         },
         "TEST_REQUEST_DEFAULT_FORMAT": "json",
-    }
+    },
 )
 
 # Use faster password hasher for testing
@@ -31,7 +32,7 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": ":memory:",
-    }
+    },
 }
 
 # Disable email sending during tests

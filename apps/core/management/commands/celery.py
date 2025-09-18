@@ -32,7 +32,7 @@ class Command(BaseCommand):
         if os.name == "nt":
             worker_pool = "solo"  # Use solo pool for Windows
             self.stdout.write(
-                self.style.WARNING("Windows detected: Using 'solo' worker pool")
+                self.style.WARNING("Windows detected: Using 'solo' worker pool"),
             )
         else:
             worker_pool = "prefork"
@@ -73,11 +73,11 @@ class Command(BaseCommand):
 
         try:
             self.stdout.write(self.style.SUCCESS("Starting Celery worker..."))
-            worker_process = Popen(worker_cmd)  # noqa: S603
+            worker_process = Popen(worker_cmd)
             processes.append(worker_process)
 
             self.stdout.write(self.style.SUCCESS("Starting Celery beat..."))
-            beat_process = Popen(beat_cmd)  # noqa: S603
+            beat_process = Popen(beat_cmd)
             processes.append(beat_process)
 
             # Keep the command running

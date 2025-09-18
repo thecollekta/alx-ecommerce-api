@@ -1,14 +1,18 @@
-# apps/accounts/models.py
+from typing import ClassVar
 
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import RegexValidator
 from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.utils import timezone
+from django.utils.crypto import get_random_string
 from django.utils.translation import gettext_lazy as _
 
-from apps.accounts.managers import ActiveManager, UserManager
-from apps.core.models import AllObjectsManager, AuditStampedModelBase
+from apps.accounts.managers import ActiveManager
+from apps.accounts.managers import UserManager
+from apps.core.models import AllObjectsManager
+from apps.core.models import AuditStampedModelBase
 
 
 # Custom managers for specific user queries
@@ -49,7 +53,7 @@ class User(AuditStampedModelBase, AbstractUser):
         default=False,
         help_text=_("Designates whether this user's email has been verified."),
     )
-    email_verification_token = models.CharField(  # noqa: DJ001
+    email_verification_token = models.CharField(
         _("email verification token"),
         max_length=64,
         blank=True,
@@ -82,14 +86,16 @@ class User(AuditStampedModelBase, AbstractUser):
             RegexValidator(
                 regex=r"^\+?1?\d{9,15}$",
                 message="Phone number must be entered in the format: '+233123456'. Up to 15 digits allowed.",
-            )
+            ),
         ],
         help_text=_("Contact phone number"),
     )
 
     # Address fields
     address_line_1 = models.CharField(
-        max_length=255, blank=True, help_text=_("Primary address line")
+        max_length=255,
+        blank=True,
+        help_text=_("Primary address line"),
     )
     address_line_2 = models.CharField(
         max_length=255,
@@ -98,13 +104,20 @@ class User(AuditStampedModelBase, AbstractUser):
     )
     city = models.CharField(max_length=100, blank=True, help_text=_("City"))
     state = models.CharField(
-        max_length=100, blank=True, help_text=_("Region/State/Province")
+        max_length=100,
+        blank=True,
+        help_text=_("Region/State/Province"),
     )
     postal_code = models.CharField(
-        max_length=20, blank=True, help_text=_("Postal or ZIP code")
+        max_length=20,
+        blank=True,
+        help_text=_("Postal or ZIP code"),
     )
     country = models.CharField(
-        max_length=100, blank=True, default="Ghana", help_text=_("Country")
+        max_length=100,
+        blank=True,
+        default="Ghana",
+        help_text=_("Country"),
     )
 
     # Account status
@@ -116,8 +129,8 @@ class User(AuditStampedModelBase, AbstractUser):
     )
 
     # Use email as the username field for authentication
-    USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = ["username", "first_name", "last_name"]
+    USERNAME_FIELD: ClassVar[str] = "email"
+    REQUIRED_FIELDS: ClassVar[list[str]] = ["username", "first_name", "last_name"]
 
     # Managers
     objects = UserManager()  # Default manager with create_user and create_superuser
@@ -129,7 +142,7 @@ class User(AuditStampedModelBase, AbstractUser):
     class Meta:
         verbose_name = _("User")
         verbose_name_plural = _("Users")
-        ordering = ["-date_joined"]
+        ordering: ClassVar[list[str]] = ["-date_joined"]
 
     def __str__(self):
         return self.get_full_name() or self.email
@@ -171,7 +184,7 @@ class User(AuditStampedModelBase, AbstractUser):
                 "email_verified",
                 "is_active",
                 "updated_at",
-            ]
+            ],
         )
 
     def suspend_account(self):
@@ -189,8 +202,6 @@ class User(AuditStampedModelBase, AbstractUser):
             return False
 
         # Check if token is expired (24 hours)
-        from django.utils import timezone
-
         if (
             self.email_verification_token_created_at
             and timezone.now()
@@ -206,22 +217,19 @@ class User(AuditStampedModelBase, AbstractUser):
                 "email_verified",
                 "email_verification_token",
                 "email_verification_token_created_at",
-            ]
+            ],
         )
         return True
 
     def generate_email_verification_token(self):
         """Generate a new email verification token."""
-        from django.utils import timezone
-        from django.utils.crypto import get_random_string
-
         self.email_verification_token = get_random_string(64)
         self.email_verification_token_created_at = timezone.now()
         self.save(
             update_fields=[
                 "email_verification_token",
                 "email_verification_token_created_at",
-            ]
+            ],
         )
         return self.email_verification_token
 
@@ -244,24 +252,28 @@ class UserProfile(AuditStampedModelBase):
 
     # Additional profile fields
     date_of_birth = models.DateField(
-        blank=True, null=True, help_text=_("Date of birth")
+        blank=True,
+        null=True,
+        help_text=_("Date of birth"),
     )
 
     bio = models.TextField(max_length=500, blank=True, help_text=_("Short biography"))
 
     # Preferences
     newsletter_subscription = models.BooleanField(
-        default=False, help_text=_("Subscribe to newsletter")
+        default=False,
+        help_text=_("Subscribe to newsletter"),
     )
 
     marketing_emails = models.BooleanField(
-        default=False, help_text=_("Receive marketing emails")
+        default=False,
+        help_text=_("Receive marketing emails"),
     )
 
     # Social media links
     website = models.URLField(blank=True, help_text=_("Personal website"))
 
-    class Meta:  # type: ignore
+    class Meta:
         verbose_name = "User Profile"
         verbose_name_plural = "User Profiles"
 

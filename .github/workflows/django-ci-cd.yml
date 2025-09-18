@@ -77,7 +77,7 @@ jobs:
           fail_ci_if_error: false
 
   lint:
-    name: Lint with flake8 and black
+    name: Lint and Format with Ruff
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -87,23 +87,17 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Install dependencies
+      - name: Install Ruff
         run: |
           python -m pip install --upgrade pip
-          pip install flake8 black isort
+          pip install ruff
 
-      - name: Run flake8
+      - name: Run Ruff (formatting and linting)
         run: |
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-          flake8 . --count --max-complexity=10 --max-line-length=88 --statistics
-
-      - name: Check formatting with black
-        run: |
-          black --check --diff .
-
-      - name: Check import sorting with isort
-        run: |
-          isort --check-only --diff .
+          # Check code style and import sorting
+          ruff check .
+          # Check formatting
+          ruff format --check .
 
   security:
     name: Security checks

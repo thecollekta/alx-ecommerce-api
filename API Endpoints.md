@@ -1338,3 +1338,207 @@ Response body
   **"access": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU4MTQ2NDYxLCJpYXQiOjE3NTgxMzIwNjEsImp0aSI6IjgwZGM1NjU4YTU5NjRmNTY5YzU2ZDk0Yzg3MWFlZWI0IiwidXNlcl9pZCI6IjI1ZmUwMmMzLWEzY2UtNGMzNi1iNWMzLTMxNTZlZDkwNzg1OCJ9.C9IE0ToYbz1u2WrMHpc6RQVhIsrChbS\_MXfrHoSpotw",**
 
   **"refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc1ODIxODQ2MSwiaWF0IjoxNzU4MTMyMDYxLCJqdGkiOiI2ZGYyZDZiYzZkNWY0ZTZkYWM2NDJlZGU4ZWE5MTA0NSIsInVzZXJfaWQiOiIyNWZlMDJjMy1hM2NlLTRjMzYtYjVjMy0zMTU2ZWQ5MDc4NTgifQ.W96cvY07v1RZzxdmV68vMTrxGk\_t2f6y9GFYvWZKPy8**
+
+# GraphQL
+
+## Register a User
+mutation {
+  registerUser(
+    username: "kwame"
+    email: "kwame.nkrumah@ghana.com"
+    password: "Blackstar233."
+    passwordConfirm: "Blackstar233."
+    acceptTerms: true
+  ) {
+    ok
+    errors
+    user {
+      id
+      email
+      username
+    }
+  }
+}
+
+Success Response
+{
+  "data": {
+    "registerUser": {
+      "ok": true,
+      "errors": [],
+      "user": {
+        "id": "b675f7a6-c781-4985-a041-0f3dfb99237a",
+        "email": "kwame.nkrumah@ghana.com",
+        "username": "kwame"
+      }
+    }
+  }
+}
+
+Error: Register a User
+{
+  "data": {
+    "registerUser": {
+      "ok": false,
+      "errors": [
+        "username: A user with this username already exists.",
+        "email: A user with this email address already exists."
+      ],
+      "user": null
+    }
+  }
+}
+
+## User Login
+
+### User Login Request
+
+mutation {
+  login(email: "kwame.nkrumah@ghana.com", password: "Blackstar233.") {
+    ok
+    access
+    refresh
+    errors
+  }
+}
+
+### User Login Response
+
+Success Response
+
+{
+  "data": {
+    "login": {
+      "ok": true,
+      "access": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU4MjE5NDQ5LCJpYXQiOjE3NTgyMDUwNTAsImp0aSI6IjZhMWZmNzczN2M0NDQwZTc5ZDU2ODlkNmUxMGFkZDJjIiwidXNlcl9pZCI6ImM1NWZkZDMzLTEwOTQtNGQ0Ni05NzI5LWFhNDI0MGY2YjhhNyJ9.5EMBtURyb_bnqPiC_uk1vFI3vus4owr17YYbp5L3gn8",
+      "refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc1ODI5MTQ0OSwiaWF0IjoxNzU4MjA1MDQ5LCJqdGkiOiIyNmRmOWQ2MjI4MmU0Mzg4OWMwMDNjYzA2M2Q1NzRiNCIsInVzZXJfaWQiOiJjNTVmZGQzMy0xMDk0LTRkNDYtOTcyOS1hYTQyNDBmNmI4YTcifQ.OZmoKhwz5VWKSO8yhYSdba6GO32Lc0Gyn6HH3brA4Jk",
+      "errors": []
+    }
+  }
+}
+
+Error Response
+
+{
+  "data": {
+    "login": {
+      "ok": false,
+      "access": null,
+      "refresh": null,
+      "errors": [
+        "detail: Invalid email or password."
+      ]
+    }
+  }
+}
+
+## Update Profile
+
+### Update Profile Request
+
+mutation {
+  updateProfile(firstName: "Kwame", lastName: "Nkrumah") {
+    ok
+    errors
+    user {
+      id
+      firstName
+      lastName
+    }
+  }
+}
+
+### Update Profile Response
+
+{
+  "data": {
+    "updateProfile": {
+      "ok": true,
+      "errors": [],
+      "user": {
+        "id": "25fe02c3-a3ce-4c36-b5c3-3156ed907858",
+        "firstName": "Kwame",
+        "lastName": "Nkrumah"
+      }
+    }
+  }
+}
+
+
+## Change Password
+
+Include JWT token in the headers as below:
+{
+  "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU4MjE5NDQ5LCJpYXQiOjE3NTgyMDUwNTAsImp0aSI6IjZhMWZmNzczN2M0NDQwZTc5ZDU2ODlkNmUxMGFkZDJjIiwidXNlcl9pZCI6ImM1NWZkZDMzLTEwOTQtNGQ0Ni05NzI5LWFhNDI0MGY2YjhhNyJ9.5EMBtURyb_bnqPiC_uk1vFI3vus4owr17YYbp5L3gn8"  
+}
+
+
+### Change Password Request
+mutation {
+  changePassword(
+    oldPassword: "Blackstar233."
+    newPassword: "Independence57."
+    newPasswordConfirm: "Independence57."
+  ) {
+    ok
+    message
+    errors
+  }
+}
+
+### Change Password Response
+
+Success
+{
+  "data": {
+    "changePassword": {
+      "ok": true,
+      "message": "Password changed successfully.",
+      "errors": []
+    }
+  }
+}
+
+Error
+{
+  "data": {
+    "changePassword": {
+      "ok": false,
+      "message": null,
+      "errors": [
+        "old_password: Current password is incorrect."
+      ]
+    }
+  }
+}
+
+## Query Current User
+
+### Query Current User Request
+
+{
+  me {
+    id
+    username
+    email
+    firstName
+    lastName
+    emailVerified
+  }
+}
+
+### Query Current User Response
+{
+  "data": {
+    "me": {
+      "id": "25fe02c3-a3ce-4c36-b5c3-3156ed907858",
+      "username": "Collekta",
+      "email": "admin@ecommerce.com",
+      "firstName": "Festus",
+      "lastName": "Aboagye",
+      "emailVerified": true
+    }
+  }
+}
+
+

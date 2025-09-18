@@ -1,6 +1,7 @@
 # ecommerce_backend/settings/production.py
 
-from .base import *  # noqa: F403
+from .base import *
+
 
 # Core settings
 DEBUG = False
@@ -36,11 +37,11 @@ SECURE_BROWSER_XSS_FILTER = True
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": env("DB_NAME"),  # noqa: F405
-        "USER": env("DB_USER"),  # noqa: F405
-        "PASSWORD": env("DB_PASSWORD"),  # noqa: F405
-        "HOST": env("DB_HOST"),  # noqa: F405
-        "PORT": env("DB_PORT"),  # noqa: F405
+        "NAME": env("DB_NAME"),
+        "USER": env("DB_USER"),
+        "PASSWORD": env("DB_PASSWORD"),
+        "HOST": env("DB_HOST"),
+        "PORT": env("DB_PORT"),
         "CONN_MAX_AGE": 600,  # 10 minutes connection persistence
         "OPTIONS": {
             "connect_timeout": 5,
@@ -49,24 +50,24 @@ DATABASES = {
             "keepalives_interval": 10,
             "keepalives_count": 5,
         },
-    }
+    },
 }
 
 # Caching
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": env("REDIS_URL"),  # noqa: F405
+        "LOCATION": env("REDIS_URL"),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
             "SOCKET_CONNECT_TIMEOUT": 5,  # seconds
             "SOCKET_TIMEOUT": 5,  # seconds
             "IGNORE_EXCEPTIONS": True,  # don't crash on Redis errors
-            "PASSWORD": env("REDIS_PASSWORD", default=None),  # noqa: F405
+            "PASSWORD": env("REDIS_PASSWORD", default=None),
             "CONNECTION_POOL_KWARGS": {"max_connections": 100},
         },
         "KEY_PREFIX": "ecommerce",
-    }
+    },
 }
 
 # Logging configuration
@@ -109,13 +110,13 @@ LOGGING = {
 
 # Email settings
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = env("EMAIL_HOST")  # noqa: F405
-EMAIL_PORT = env("EMAIL_PORT", default=587)  # noqa: F405
-EMAIL_USE_TLS = env("EMAIL_USE_TLS", default=True)  # noqa: F405
-EMAIL_HOST_USER = env("EMAIL_HOST_USER")  # noqa: F405
-EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD")  # noqa: F405
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default=EMAIL_HOST_USER)  # noqa: F405
-SERVER_EMAIL = env("SERVER_EMAIL", default=DEFAULT_FROM_EMAIL)  # noqa: F405
+EMAIL_HOST = env("EMAIL_HOST")
+EMAIL_PORT = env("EMAIL_PORT", default=587)
+EMAIL_USE_TLS = env("EMAIL_USE_TLS", default=True)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default=EMAIL_HOST_USER)
+SERVER_EMAIL = env("SERVER_EMAIL", default=DEFAULT_FROM_EMAIL)
 
 # Performance
 SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
@@ -130,18 +131,18 @@ SECURE_REFERRER_POLICY = "same-origin"
 SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin-allow-popups"
 
 # Monitoring
-ENABLE_METRICS = env.bool("ENABLE_METRICS", default=False)  # noqa: F405
+ENABLE_METRICS = env.bool("ENABLE_METRICS", default=False)
 if ENABLE_METRICS:
-    INSTALLED_APPS += ["django_prometheus"]  # noqa: F405
-    MIDDLEWARE = (
-        ["django_prometheus.middleware.PrometheusBeforeMiddleware"]
-        + MIDDLEWARE  # noqa: F405
-        + ["django_prometheus.middleware.PrometheusAfterMiddleware"]
-    )
+    INSTALLED_APPS += ["django_prometheus"]
+    MIDDLEWARE = [
+        "django_prometheus.middleware.PrometheusBeforeMiddleware",
+        *MIDDLEWARE,
+        "django_prometheus.middleware.PrometheusAfterMiddleware",
+    ]
 
 # Custom settings
-ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["example.com"])  # noqa: F405
-INTERNAL_IPS = env.list("INTERNAL_IPS", default=["127.0.0.1"])  # noqa: F405
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["example.com"])
+INTERNAL_IPS = env.list("INTERNAL_IPS", default=["127.0.0.1"])
 
 # Security headers for modern browsers
 SECURE_BROWSER_XSS_FILTER = True
@@ -166,30 +167,31 @@ MIDDLEWARE = [
 WSGI_APPLICATION = "ecommerce_backend.wsgi.application"
 
 # Admin URL
-ADMIN_URL = env("DJANGO_ADMIN_URL")  # noqa: F405
+ADMIN_URL = env("DJANGO_ADMIN_URL")
 
 # Sentry configuration (if using)
-if "SENTRY_DSN" in env:  # noqa: F405
+if "SENTRY_DSN" in env:
     import sentry_sdk
     from sentry_sdk.integrations.django import DjangoIntegration
 
     sentry_sdk.init(
-        dsn=env("SENTRY_DSN"),  # noqa: F405
+        dsn=env("SENTRY_DSN"),
         integrations=[DjangoIntegration()],
         send_default_pii=True,
-        environment=env(  # noqa: F405
-            "ENVIRONMENT", default="production"
-        ),  # noqa: F405 # type: ignore
+        environment=env(
+            "ENVIRONMENT",
+            default="production",
+        ),
     )
 
 # Performance optimizations
-TEMPLATES[0]["OPTIONS"]["debug"] = False  # noqa: F405
-TEMPLATES[0]["OPTIONS"]["loaders"] = [  # noqa: F405
+TEMPLATES[0]["OPTIONS"]["debug"] = False
+TEMPLATES[0]["OPTIONS"]["loaders"] = [
     (
         "django.template.loaders.cached.Loader",
         [
             "django.template.loaders.filesystem.Loader",
             "django.template.loaders.app_directories.Loader",
         ],
-    )
+    ),
 ]

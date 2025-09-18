@@ -6,7 +6,8 @@ Provides different throttling rates for different user types and actions.
 """
 
 from django.core.cache import cache
-from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
+from rest_framework.throttling import AnonRateThrottle
+from rest_framework.throttling import UserRateThrottle
 
 
 class CustomAnonRateThrottle(AnonRateThrottle):
@@ -141,10 +142,7 @@ class APIKeyRateThrottle(UserRateThrottle):
         Falls back to IP-based identification if no API key is present.
         """
         api_key = request.META.get("HTTP_X_API_KEY")
-        if not api_key:
-            ident = self.get_ident(request)
-        else:
-            ident = api_key
+        ident = api_key if api_key else self.get_ident(request)
 
         return self.cache_format % {"scope": self.scope, "ident": ident}
 
@@ -171,18 +169,17 @@ class ThrottlingUtils:
                         "login": LoginRateThrottle,
                         "create_account": CreateAccountRateThrottle,
                         "password_reset": PasswordResetRateThrottle,
-                    }[action]
+                    }[action],
                 )
 
             return throttles
 
-        elif user.is_staff:
+        if user.is_staff:
             # Admin users get more permissive throttling
             return [AdminRateThrottle, BurstRateThrottle]
 
-        else:
-            # Regular authenticated users
-            return [CustomUserRateThrottle, BurstRateThrottle]
+        # Regular authenticated users
+        return [CustomUserRateThrottle, BurstRateThrottle]
 
     @staticmethod
     def is_user_throttled(request):

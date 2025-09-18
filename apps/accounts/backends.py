@@ -7,6 +7,7 @@ Custom authentication backends for the accounts app.
 from django.contrib.auth import get_user_model
 from django.contrib.auth.backends import ModelBackend
 
+
 User = get_user_model()
 
 
@@ -23,7 +24,7 @@ class EmailBackend(ModelBackend):
             return None
 
         try:
-            user = User._default_manager.get(email=username)
+            user = User.objects.get(email=username)
         except User.DoesNotExist:
             # Run the default password hasher once to reduce the timing
             # difference between an existing and a non-existing user

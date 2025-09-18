@@ -5,20 +5,24 @@ Base viewsets with logging, throttling, and common functionality.
 Provides a foundation for all API views in the e-commerce application.
 """
 
+from typing import ClassVar
+
 import structlog
 from django.db import transaction
 from django.utils import timezone
-from drf_spectacular.utils import (
-    OpenApiExample,
-    OpenApiResponse,
-    extend_schema,
-    extend_schema_view,
-)
-from rest_framework import status, viewsets
+from drf_spectacular.utils import OpenApiExample
+from drf_spectacular.utils import OpenApiResponse
+from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema_view
+from rest_framework import status
+from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
+from rest_framework.throttling import AnonRateThrottle
+from rest_framework.throttling import BaseThrottle
+from rest_framework.throttling import UserRateThrottle
+
 
 # Set up logging
 logger = structlog.get_logger(__name__)
@@ -145,7 +149,10 @@ class BaseViewSet(LoggingMixin, viewsets.ModelViewSet):
     """
 
     # Default throttling - can be overridden in child classes
-    throttle_classes = [UserRateThrottle, AnonRateThrottle]
+    throttle_classes: ClassVar[list[type[BaseThrottle]]] = [
+        UserRateThrottle,
+        AnonRateThrottle,
+    ]
 
     def initial(self, request, *args, **kwargs):
         """
@@ -224,7 +231,8 @@ class BaseViewSet(LoggingMixin, viewsets.ModelViewSet):
             response = super().retrieve(request, *args, **kwargs)
 
             self.log_action(
-                "retrieve_success", extra_data={"object_id": kwargs.get("pk")}
+                "retrieve_success",
+                extra_data={"object_id": kwargs.get("pk")},
             )
 
             return response
@@ -232,7 +240,8 @@ class BaseViewSet(LoggingMixin, viewsets.ModelViewSet):
         except Exception as e:
             logger.error(f"Error in retrieve view: {e}")
             return Response(
-                {"error": "Object not found"}, status=status.HTTP_404_NOT_FOUND
+                {"error": "Object not found"},
+                status=status.HTTP_404_NOT_FOUND,
             )
 
     @transaction.atomic
@@ -271,7 +280,8 @@ class BaseViewSet(LoggingMixin, viewsets.ModelViewSet):
             response = super().update(request, *args, **kwargs)
 
             self.log_action(
-                "update_success", extra_data={"updated_object_id": kwargs.get("pk")}
+                "update_success",
+                extra_data={"updated_object_id": kwargs.get("pk")},
             )
 
             return response
@@ -323,16 +333,18 @@ class BaseViewSet(LoggingMixin, viewsets.ModelViewSet):
                 description="Object restored successfully",
                 examples=[
                     OpenApiExample(
-                        "Success", value={"message": "Object restored successfully"}
-                    )
+                        "Success",
+                        value={"message": "Object restored successfully"},
+                    ),
                 ],
             ),
             400: OpenApiResponse(
                 description="Restore operation not supported or invalid request",
                 examples=[
                     OpenApiExample(
-                        "Error", value={"error": "Restore operation not supported"}
-                    )
+                        "Error",
+                        value={"error": "Restore operation not supported"},
+                    ),
                 ],
             ),
             401: OpenApiResponse(description="Authentication required"),
@@ -352,14 +364,14 @@ class BaseViewSet(LoggingMixin, viewsets.ModelViewSet):
             if hasattr(instance, "restore"):
                 instance.restore()
                 self.log_action(
-                    "restore_success", extra_data={"restored_object_id": pk}
+                    "restore_success",
+                    extra_data={"restored_object_id": pk},
                 )
                 return Response({"message": "Object restored successfully"})
-            else:
-                return Response(
-                    {"error": "Restore operation not supported"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+            return Response(
+                {"error": "Restore operation not supported"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         except Exception as e:
             logger.error(f"Error in restore action: {e}")
@@ -393,7 +405,10 @@ class BaseReadOnlyViewSet(LoggingMixin, viewsets.ReadOnlyModelViewSet):
     Useful for reference data or public information that shouldn't be modified via API.
     """
 
-    throttle_classes = [UserRateThrottle, AnonRateThrottle]
+    throttle_classes: ClassVar[list[type[BaseThrottle]]] = [
+        UserRateThrottle,
+        AnonRateThrottle,
+    ]
 
     def list(self, request, *args, **kwargs):
         """Override list to add logging."""
@@ -416,7 +431,8 @@ class BaseReadOnlyViewSet(LoggingMixin, viewsets.ReadOnlyModelViewSet):
         response = super().retrieve(request, *args, **kwargs)
 
         self.log_action(
-            "readonly_retrieve_success", extra_data={"object_id": kwargs.get("pk")}
+            "readonly_retrieve_success",
+            extra_data={"object_id": kwargs.get("pk")},
         )
 
         return response

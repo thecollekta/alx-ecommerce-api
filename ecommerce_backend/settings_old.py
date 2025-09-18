@@ -14,6 +14,7 @@ from pathlib import Path
 
 import environ
 
+
 # Initialize environ
 env = environ.Env(
     # Set casting and default values
@@ -102,7 +103,7 @@ DATABASES = {
         "PASSWORD": env("DB_PASSWORD"),
         "HOST": env("DB_HOST"),
         "PORT": env("DB_PORT"),
-    }
+    },
 }
 
 

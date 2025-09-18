@@ -21,14 +21,13 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.http import JsonResponse
-from django.urls import include, path
-from django.views.decorators.csrf import csrf_exempt
-from drf_spectacular.views import (
-    SpectacularAPIView,
-    SpectacularRedocView,
-    SpectacularSwaggerView,
-)
-from graphene_django.views import GraphQLView
+from django.urls import include
+from django.urls import path
+from drf_spectacular.views import SpectacularAPIView
+from drf_spectacular.views import SpectacularRedocView
+from drf_spectacular.views import SpectacularSwaggerView
+
+from apps.core.graphql import AuthenticatedGraphQLView
 
 
 def health_check(request):
@@ -52,14 +51,14 @@ urlpatterns = [
         name="redoc",
     ),
     # GraphQL documentation
-    path("graphql", csrf_exempt(GraphQLView.as_view(graphiql=True))),
+    path("graphql", AuthenticatedGraphQLView.as_view(graphiql=settings.DEBUG)),
     path(
         "api/v1/",
         include(
             [
                 # App routers
                 path("accounts/", include("apps.accounts.urls")),
-            ]
+            ],
         ),
     ),
 ]

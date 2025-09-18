@@ -7,7 +7,8 @@ Provides flexible pagination options for different use cases.
 
 from collections import OrderedDict
 
-from rest_framework.pagination import LimitOffsetPagination, PageNumberPagination
+from rest_framework.pagination import LimitOffsetPagination
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 
 
@@ -49,8 +50,8 @@ class StandardResultsSetPagination(PageNumberPagination):
                                 "end_index": 0,
                             },
                         ),
-                    ]
-                )
+                    ],
+                ),
             )
 
         return Response(
@@ -75,8 +76,8 @@ class StandardResultsSetPagination(PageNumberPagination):
                             "end_index": self.page.end_index(),
                         },
                     ),
-                ]
-            )
+                ],
+            ),
         )
 
 
@@ -116,8 +117,8 @@ class LargeResultsSetPagination(PageNumberPagination):
                                 "has_previous": False,
                             },
                         ),
-                    ]
-                )
+                    ],
+                ),
             )
 
         return Response(
@@ -142,8 +143,8 @@ class LargeResultsSetPagination(PageNumberPagination):
                             "has_previous": self.page.has_previous(),
                         },
                     ),
-                ]
-            )
+                ],
+            ),
         )
 
 
@@ -174,8 +175,8 @@ class SmallResultsSetPagination(PageNumberPagination):
                         ("next", None),
                         ("previous", None),
                         ("results", []),
-                    ]
-                )
+                    ],
+                ),
             )
 
         return Response(
@@ -191,8 +192,8 @@ class SmallResultsSetPagination(PageNumberPagination):
                     ("next", self.get_next_link()),
                     ("previous", self.get_previous_link()),
                     ("results", data),
-                ]
-            )
+                ],
+            ),
         )
 
 
@@ -233,12 +234,13 @@ class CustomLimitOffsetPagination(LimitOffsetPagination):
                             "next_offset": next_offset,
                             "previous_offset": previous_offset,
                             "remaining": max(
-                                0, self.count - (self.offset + self.limit)
+                                0,
+                                self.count - (self.offset + self.limit),
                             ),
                         },
                     ),
-                ]
-            )
+                ],
+            ),
         )
 
 
@@ -252,7 +254,7 @@ class NoPagination:
 
     def paginate_queryset(self, queryset, request, view=None):
         """Return None to indicate no pagination."""
-        return None
+        return
 
     def get_paginated_response(self, data):
         """Return data without pagination wrapper."""
@@ -268,8 +270,8 @@ class NoPagination:
                             "warning": "All results returned - consider using pagination for large datasets",
                         },
                     ),
-                ]
-            )
+                ],
+            ),
         )
 
 

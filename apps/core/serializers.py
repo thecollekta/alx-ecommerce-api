@@ -8,11 +8,13 @@ Provides common serialization functionality for all models.
 import html
 import re
 from typing import Any
+from typing import ClassVar
 
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from .models import AuditStampedModelBase as BaseModel
+from apps.core.models import AuditStampedModelBase as BaseModel
+
 
 User = get_user_model()
 
@@ -34,7 +36,10 @@ class SecurityMixin:
 
         # Remove script tags and their content
         value = re.sub(
-            r"<script[^>]*>.*?</script>", "", value, flags=re.DOTALL | re.IGNORECASE
+            r"<script[^>]*>.*?</script>",
+            "",
+            value,
+            flags=re.DOTALL | re.IGNORECASE,
         )
 
         # Remove potentially dangerous tags
@@ -56,7 +61,8 @@ class SecurityMixin:
         if value:
             value = self.sanitize_input(value)
             if len(value.strip()) < 1:
-                raise serializers.ValidationError("This field cannot be empty.")
+                msg = "This field cannot be empty."
+                raise serializers.ValidationError(msg)
         return value
 
 
@@ -67,13 +73,13 @@ class RoleBasedFieldMixin:
     """
 
     # Define sensitive fields that should be hidden from regular users
-    sensitive_fields = ["created_by", "updated_by", "is_active"]
+    sensitive_fields: ClassVar[list[str]] = ["created_by", "updated_by", "is_active"]
 
     def get_fields(self):
         """
         Override to dynamically show/hide fields based on user role.
         """
-        fields = super().get_fields()  # type: ignore
+        fields = super().get_fields()
         request = self.context.get("request") if hasattr(self, "context") else None
 
         # If no request context, return all fields
@@ -95,7 +101,9 @@ class RoleBasedFieldMixin:
 
 
 class BaseModelSerializer(
-    SecurityMixin, RoleBasedFieldMixin, serializers.ModelSerializer
+    SecurityMixin,
+    RoleBasedFieldMixin,
+    serializers.ModelSerializer,
 ):
     """
     Base serializer that provides common functionality for all model serializers.
@@ -105,16 +113,20 @@ class BaseModelSerializer(
     created_at = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S", read_only=True)
     updated_at = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S", read_only=True)
     created_by = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.all(), required=False, allow_null=True
+        queryset=User.objects.all(),
+        required=False,
+        allow_null=True,
     )
     updated_by = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.all(), required=False, allow_null=True
+        queryset=User.objects.all(),
+        required=False,
+        allow_null=True,
     )
 
     class Meta:
         # Common fields that should be included in all serializers
         model = BaseModel
-        fields = [
+        fields: ClassVar[list[str]] = [
             "id",
             "created_at",
             "updated_at",
@@ -122,7 +134,7 @@ class BaseModelSerializer(
             "updated_by",
             "is_active",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields: ClassVar[list[str]] = ["id", "created_at", "updated_at"]
 
     def create(self, validated_data: dict[str, Any]) -> BaseModel:
         """
