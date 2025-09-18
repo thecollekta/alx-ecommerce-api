@@ -1,10 +1,6 @@
-# ALX E-Commerce Backend API
+# Project Nexus - E-commerce Backend
 
-[![Python Version](https://img.shields.io/badge/python-3.13%2B-blue.svg)](https://www.python.org/)
-[![Django Version](https://img.shields.io/badge/django-5.2.6%2B-brightgreen.svg)](https://www.djangoproject.com/)
-[![Build Status](https://github.com/thecollekta/alx-ecommerce-api/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/thecollekta/alx-ecommerce-api/actions/workflows/tests.yml)
-[![Coverage Status](https://coveralls.io/repos/github/thecollekta/alx-ecommerce-api/badge.svg?branch=main)](https://coveralls.io/github/thecollekta/alx-ecommerce-api?branch=main)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+A robust, scalable, and secure Django-based e-commerce backend with REST and GraphQL API support.
 
 ## Project Overview
 
@@ -25,7 +21,7 @@ e-commerce platforms with modern development practices.
 
 ## Table of Contents
 
-- [ALX E-Commerce Backend API](#alx-e-commerce-backend-api)
+- [Project Nexus - E-commerce Backend](#project-nexus---e-commerce-backend)
   - [Project Overview](#project-overview)
   - [Tech Stack](#tech-stack)
   - [Table of Contents](#table-of-contents)
@@ -35,20 +31,18 @@ e-commerce platforms with modern development practices.
     - [API Features](#api-features)
     - [Development Tools](#development-tools)
   - [Project Structure](#project-structure)
-  - [Getting Started](#getting-started)
-    - [Prerequisites](#prerequisites)
-    - [Local Development](#local-development)
     - [Running with Docker](#running-with-docker)
-  - [Testing](#testing)
   - [API Documentation](#api-documentation)
+    - [Interactive Documentation](#interactive-documentation)
     - [Authentication](#authentication)
-    - [Example API Request](#example-api-request)
-  - [Deployment](#deployment)
-    - [Production Setup](#production-setup)
-    - [Environment Variables](#environment-variables)
+    - [Available Endpoints](#available-endpoints)
+      - [Authentication](#authentication-1)
+      - [User Profile](#user-profile)
+  - [Testing](#testing)
+  - [Development Workflow](#development-workflow)
   - [Contributing](#contributing)
   - [License](#license)
-  - [Acknowledgments](#acknowledgments)
+  - [Support](#support)
 
 ## Features
 
@@ -72,7 +66,7 @@ e-commerce platforms with modern development practices.
 - RESTful API design with consistent response formats
 - Advanced filtering, searching, and sorting
 - Pagination support
-- GraphQL endpoint
+- GraphQL endpoint (Coming Soon)
 - Comprehensive API documentation (Swagger/ReDoc)
 
 ### Development Tools
@@ -86,8 +80,15 @@ e-commerce platforms with modern development practices.
 ## Project Structure
 
 ```text
-alx-ecommerce-api/
+project-nexus/
 ├── apps/
+│   ├── accounts/                # User authentication and profile management
+│   │   ├── admin.py             # Admin configurations for user models
+│   │   ├── apps.py              # App configuration
+│   │   ├── backends.py          # Custom Authentication backends
+│   │   ├── models.py            # Custom user model and related models
+│   │   ├── serializers.py       # Serializers for user data
+│   │   └── views.py             # Authentication and profile views
 │   └── core/                    # Core application with base functionality
 │       ├── admin.py             # Admin site configurations
 │       ├── apps.py              # App config
@@ -121,81 +122,59 @@ alx-ecommerce-api/
 ├── .dockerignore
 ├── .env.example                 # Example environment variables
 ├── .gitignore
-├── .pre-commit-config.yaml      # Pre-commit hooks configuration
+├── .safety-project.ini          # Safety configuration
 ├── docker-compose.yml           # Docker Compose configuration
 ├── Dockerfile                   # Docker configuration
 ├── manage.py                    # Django management script
-├── pyproject.toml               # Python project configuration
 ├── pytest.ini                   # Pytest configuration
 ├── README.md                    # This file
 └── requirements.txt             # Development dependencies
-```
+
+## Accounts API Endpoints
+
+This document provides a comprehensive overview of the API endpoints available for user account management. Read the full documentation in [API Docs](docs/api_docs.md).
 
 ## Getting Started
 
 ### Prerequisites
 
-- Python 3.13+
-- PostgreSQL 17+
-- Redis 7.2+ (for Celery)
-- Docker & Docker Compose (optional)
+- Python 3.11+
+- PostgreSQL 13+
+- Redis 6.0+
+- Docker and Docker Compose (optional)
 
-### Local Development
+### Local Development Setup
 
 1. **Clone the repository**
-
    ```bash
-   git clone https://github.com/yourusername/alx-ecommerce-api.git
-   cd alx-ecommerce-api
+   git clone https://github.com/yourusername/project-nexus.git
+   cd project-nexus
    ```
 
-2. **Set up a virtual environment**
+2. **Set up Python virtual environment**
 
    ```bash
-   # Create a virtual environment
-   python -m venv .venv
-   
-   # Activate the virtual environment
-   # On Windows:
-   .\.venv\Scripts\activate
-   
-   # On Unix or MacOS:
-   source .venv/bin/activate
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
 3. **Install dependencies**
 
    ```bash
-   # Install development dependencies
    pip install -r requirements/development.txt
-   
-   # Or install in development mode with all extras
-   pip install -e ".[dev]"
-   
-   # Set up pre-commit hooks
-   pre-commit install
    ```
 
 4. **Set up environment variables**
 
    ```bash
-   # Copy the example environment file
    cp .env.example .env
-   
-   # Edit the .env file with your configuration
-   # You'll need to set at least these variables:
-   # - SECRET_KEY
-   # - DJANGO_ALLOWED_HOSTS
-   # - DATABASE_URL
+   # Edit .env with your configuration
    ```
 
 5. **Set up the database**
 
    ```bash
-   # Run migrations
    python manage.py migrate
-   
-   # Create a superuser
    python manage.py createsuperuser
    ```
 
@@ -205,129 +184,70 @@ alx-ecommerce-api/
    python manage.py runserver
    ```
 
-7. **Run Celery worker (in a new terminal)**
-
-   ```bash
-   celery -A ecommerce_backend worker -l info
-   ```
-
-8. **Run Celery beat (for scheduled tasks)**
-
-   ```bash
-   celery -A ecommerce_backend beat -l info
-   ```
-
 ### Running with Docker
 
-1. **Build and start the services**
-
-   ```bash
-   docker-compose up --build
-   ```
-
-2. **Run database migrations**
-
-   ```bash
-   docker-compose exec web python manage.py migrate
-   ```
-
-3. **Create a superuser**
-
-   ```bash
-   docker-compose exec web python manage.py createsuperuser
-   ```
-
-4. **Access the application**
-   - API: <http://localhost:8000/api/>
-   - Admin: <http://localhost:8000/admin/>
-   - API Docs: <http://localhost:8000/api/schema/swagger/>
-   - GraphQL: <http://localhost:8000/graphql>
-
-## Testing
-
-Run the test suite with:
-
 ```bash
-# Run all tests
-pytest
-
-# Run tests with coverage report
-pytest --cov=apps --cov-report=html
-
-# Run a specific test file
-pytest apps/core/tests/test_views.py
-
-# Run tests with detailed output
-pytest -v
+docker-compose up -d --build
 ```
 
 ## API Documentation
 
-API documentation is automatically generated using DRF Spectacular and available at:
+### Interactive Documentation
 
-- **Swagger UI**: <http://localhost:8000/api/schema/swagger/>
-- **ReDoc**: <http://localhost:8000/api/schema/redoc/>
-- **GraphiQL**: <http://localhost:8000/graphql>
+- **Swagger UI**: [/api/docs/](http://localhost:8000/api/docs/)
+- **ReDoc**: [/api/redoc/](http://localhost:8000/api/redoc/)
 
 ### Authentication
 
-Most endpoints require authentication. Include the JWT token in the Authorization header:
+All API endpoints (except public ones) require JWT authentication. Include the token in the Authorization header:
 
-```http
+```json
 Authorization: Bearer your.jwt.token.here
 ```
 
-### Example API Request
+### Available Endpoints
 
-```http
-GET /api/v1/products/
-Authorization: Bearer your.jwt.token.here
-Content-Type: application/json
+#### Authentication
+
+- `POST /api/v1/accounts/register/` - Register a new user
+- `POST /api/v1/accounts/login/` - Obtain JWT token
+- `POST /api/v1/accounts/token/refresh/` - Refresh JWT token
+- `POST /api/v1/accounts/password/reset/` - Request password reset
+
+#### User Profile
+
+- `GET /api/v1/accounts/profile/` - Get current user profile
+- `PUT /api/v1/accounts/profile/` - Update profile
+- `PATCH /api/v1/accounts/profile/` - Partial update profile
+
+## Testing
+
+Run the test suite with coverage:
+
+```bash
+pytest
 ```
 
-## Deployment
+## Development Workflow
 
-### Production Setup
-
-1. Set `DEBUG=False` in your environment variables
-2. Configure your web server (Nginx/Apache) to serve static files
-3. Set up a production database (PostgreSQL recommended)
-4. Configure a production-ready cache (Redis recommended)
-5. Set up monitoring (Sentry, New Relic, etc.)
-
-### Environment Variables
-
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `DEBUG` | Enable debug mode | `False` | Yes |
-| `SECRET_KEY` | Django secret key | - | Yes |
-| `DATABASE_URL` | Database connection URL | - | Yes |
-| `REDIS_URL` | Redis connection URL | `redis://redis:6379/0` | No |
-| `DJANGO_ALLOWED_HOSTS` | List of allowed hosts | `*` | No |
-| `CORS_ALLOWED_ORIGINS` | List of allowed CORS origins | `[]` | No |
-| `EMAIL_BACKEND` | Email backend | `console` | No |
-| `DEFAULT_FROM_EMAIL` | Default sender email | `webmaster@localhost` | No |
+1. Create a new branch for your feature
+2. Write tests for your changes
+3. Implement your changes
+4. Run tests and ensure all pass
+5. Create a pull request
 
 ## Contributing
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
-
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Acknowledgments
+## Support
 
-- ALX ProDev Program
-
----
-
-<div align="center">
-  Made with ❤️ for ALX ProDev Program
-</div>
+For support, please open an issue in the GitHub repository.

@@ -1,2 +1,3 @@
+# apps/core/admin.py
 
-# Register your models here.
+"""Admin configuration for the core app."""

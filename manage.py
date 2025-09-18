@@ -18,7 +18,46 @@ def main():
             "available on your PYTHONPATH environment variable? Did you "
             "forget to activate a virtual environment?"
         ) from exc
-    execute_from_command_line(sys.argv)
+
+    # Run tests with coverage if coverage is installed
+    if len(sys.argv) == 1:
+        try:
+            import coverage
+
+            cov = coverage.Coverage()
+            cov.start()
+
+            # Run tests
+            test_args = [
+                "manage.py",
+                "test",
+                "tests/unit/accounts/test_accounts.py",
+                "-v",
+                "2",
+            ]
+            execute_from_command_line(test_args)
+
+            # Generate coverage report
+            cov.stop()
+            cov.save()
+            cov.report(show_missing=True)
+
+            # Generate HTML report
+            cov.html_report(directory="htmlcov")
+            print("\nCoverage HTML report generated in htmlcov/index.html")
+
+        except ImportError:
+            # Fallback to normal test command if coverage is not installed
+            test_args = [
+                "manage.py",
+                "test",
+                "tests/unit/accounts/test_accounts.py",
+                "-v",
+                "2",
+            ]
+            execute_from_command_line(test_args)
+    else:
+        execute_from_command_line(sys.argv)
 
 
 if __name__ == "__main__":

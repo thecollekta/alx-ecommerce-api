@@ -7,7 +7,8 @@ Provides flexible pagination options for different use cases.
 
 from collections import OrderedDict
 
-from rest_framework.pagination import LimitOffsetPagination, PageNumberPagination
+from rest_framework.pagination import (LimitOffsetPagination,
+                                       PageNumberPagination)
 from rest_framework.response import Response
 
 
@@ -26,13 +27,43 @@ class StandardResultsSetPagination(PageNumberPagination):
         """
         Custom response format with enhanced metadata.
         """
+        if not self.page:
+            return Response(
+                OrderedDict(
+                    [
+                        ("count", 0),
+                        ("total_pages", 0),
+                        ("current_page", 1),
+                        (
+                            "page_size",
+                            self.get_page_size(self.request) if self.request else None,
+                        ),
+                        ("next", None),
+                        ("previous", None),
+                        ("results", []),
+                        (
+                            "_meta",
+                            {
+                                "has_next": False,
+                                "has_previous": False,
+                                "start_index": 0,
+                                "end_index": 0,
+                            },
+                        ),
+                    ]
+                )
+            )
+
         return Response(
             OrderedDict(
                 [
                     ("count", self.page.paginator.count),
                     ("total_pages", self.page.paginator.num_pages),
                     ("current_page", self.page.number),
-                    ("page_size", self.get_page_size(self.request)),
+                    (
+                        "page_size",
+                        self.get_page_size(self.request) if self.request else None,
+                    ),
                     ("next", self.get_next_link()),
                     ("previous", self.get_previous_link()),
                     ("results", data),
@@ -63,13 +94,43 @@ class LargeResultsSetPagination(PageNumberPagination):
 
     def get_paginated_response(self, data):
         """Custom response format for large result sets."""
+        if not self.page:
+            return Response(
+                OrderedDict(
+                    [
+                        ("count", 0),
+                        ("total_pages", 0),
+                        ("current_page", 1),
+                        (
+                            "page_size",
+                            self.get_page_size(self.request) if self.request else None,
+                        ),
+                        ("next", None),
+                        ("previous", None),
+                        ("results", []),
+                        (
+                            "_meta",
+                            {
+                                "dataset_type": "large",
+                                "performance_tip": "Consider using filters to reduce result set size",
+                                "has_next": False,
+                                "has_previous": False,
+                            },
+                        ),
+                    ]
+                )
+            )
+
         return Response(
             OrderedDict(
                 [
                     ("count", self.page.paginator.count),
                     ("total_pages", self.page.paginator.num_pages),
                     ("current_page", self.page.number),
-                    ("page_size", self.get_page_size(self.request)),
+                    (
+                        "page_size",
+                        self.get_page_size(self.request) if self.request else None,
+                    ),
                     ("next", self.get_next_link()),
                     ("previous", self.get_previous_link()),
                     ("results", data),
@@ -100,13 +161,34 @@ class SmallResultsSetPagination(PageNumberPagination):
 
     def get_paginated_response(self, data):
         """Custom response format for small result sets."""
+        if not self.page:
+            return Response(
+                OrderedDict(
+                    [
+                        ("count", 0),
+                        ("total_pages", 0),
+                        ("current_page", 1),
+                        (
+                            "page_size",
+                            self.get_page_size(self.request) if self.request else None,
+                        ),
+                        ("next", None),
+                        ("previous", None),
+                        ("results", []),
+                    ]
+                )
+            )
+
         return Response(
             OrderedDict(
                 [
                     ("count", self.page.paginator.count),
                     ("total_pages", self.page.paginator.num_pages),
                     ("current_page", self.page.number),
-                    ("page_size", self.get_page_size(self.request)),
+                    (
+                        "page_size",
+                        self.get_page_size(self.request) if self.request else None,
+                    ),
                     ("next", self.get_next_link()),
                     ("previous", self.get_previous_link()),
                     ("results", data),

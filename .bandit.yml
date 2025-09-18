@@ -1,0 +1,127 @@
+# Bandit configuration file
+# See: https://bandit.readthedocs.io/en/latest/config.html
+
+# Test selection
+# Select which tests to run by ID or tag
+# B1xx - general tests
+# B2xx - application/framework misconfiguration
+# B3xx - blacklists (calls)
+# B4xx - blacklists (imports)
+# B5xx - cryptography
+# B6xx - injection
+# B7xx - XSS
+# B8xx - API abuse
+# B9xx - OWASP Top 10 2017
+# B1xxx - OWASP Top 10 2021
+
+tests: 
+  - B1
+  - B3
+  - B4
+  - B5
+  - B6
+  - B7
+  - B8
+  - B9
+  - B1
+
+# Skip these tests by ID or tag
+# Example: skip: ["B101", "B102"]
+skip: []
+
+# Aggressiveness level
+# 1: Only report security issues
+# 2: Report security issues and warnings
+# 3: Report all issues
+aggressive: 1
+
+# Output format
+# Valid formats: csv, custom, html, json, screen, txt, xml, yaml
+output_format: screen
+
+# Output file (if not specified, prints to stdout)
+# output_file: bandit-report.json
+
+# Verbosity level
+# -1: Only show issues
+# 0: Show issues and warnings
+# 1: Show issues, warnings, and info-level issues
+# 2: Show everything (including debug info)
+verbose: 0
+
+# Number of lines to include in the output
+number: -1
+
+# Include only the given paths
+recursive: true
+exclude_dirs:
+  - .git
+  - .venv
+  - venv
+  - env
+  - node_modules
+  - migrations
+  - __pycache__
+  - tests
+  - test
+  - docs
+  - build
+  - dist
+
+# Include only files matching these patterns
+include: ["*.py"]
+
+# Exclude files or directories
+# exclude: []
+
+# Confidence level
+# high: Only report issues with high confidence
+# medium: Report issues with medium or high confidence
+# low: Report all issues regardless of confidence
+confidence: high
+
+# Severity level
+# high: Only report high severity issues
+# medium: Report medium or high severity issues
+# low: Report all issues regardless of severity
+# none: Report all issues regardless of severity (same as low)
+severity: medium
+
+# Plugin-specific configurations
+plugin_config:
+  # Disable the hardcoded password check for test files
+  B105:
+    pattern: test_*
+
+# Target Python versions
+target_python_versions: ["py312"]
+
+# Target operating systems
+target_os: ["linux", "windows", "darwin"]
+
+# Ignore paths that match these patterns
+ignore_paths:
+  - "**/migrations/**"
+  - "**/tests/**"
+  - "**/test_*.py"
+  - "**/conftest.py"
+  - "**/setup.py"
+  - "**/manage.py"
+  - "**/wsgi.py"
+  - "**/asgi.py"
+  - "**/__init__.py"
+  - "**/settings/**"
+
+# Custom plugins to load
+# plugins:
+#   - my_plugin
+
+# Custom test IDs to include
+# include_checks:
+#   - B101
+#   - B102
+
+# Custom test IDs to exclude
+# exclude_checks:
+#   - B101
+#   - B102

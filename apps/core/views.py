@@ -1,6 +1,5 @@
 # apps/core/views.py
 
-# core/views.py
 """
 Base viewsets with logging, throttling, and common functionality.
 Provides a foundation for all API views in the e-commerce application.
@@ -9,6 +8,8 @@ Provides a foundation for all API views in the e-commerce application.
 import structlog
 from django.db import transaction
 from django.utils import timezone
+from drf_spectacular.utils import (OpenApiExample, OpenApiResponse,
+                                   extend_schema, extend_schema_view)
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -69,6 +70,70 @@ class LoggingMixin:
         return ip
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="List objects",
+        description="Retrieve a list of objects with optional filtering and pagination.",
+        responses={
+            200: OpenApiResponse(description="List of objects retrieved successfully"),
+            400: OpenApiResponse(description="Invalid request parameters"),
+            401: OpenApiResponse(description="Authentication required"),
+            403: OpenApiResponse(description="Permission denied"),
+        },
+    ),
+    retrieve=extend_schema(
+        summary="Retrieve object",
+        description="Retrieve a specific object by ID.",
+        responses={
+            200: OpenApiResponse(description="Object retrieved successfully"),
+            404: OpenApiResponse(description="Object not found"),
+            401: OpenApiResponse(description="Authentication required"),
+            403: OpenApiResponse(description="Permission denied"),
+        },
+    ),
+    create=extend_schema(
+        summary="Create object",
+        description="Create a new object.",
+        responses={
+            201: OpenApiResponse(description="Object created successfully"),
+            400: OpenApiResponse(description="Invalid input data"),
+            401: OpenApiResponse(description="Authentication required"),
+            403: OpenApiResponse(description="Permission denied"),
+        },
+    ),
+    update=extend_schema(
+        summary="Update object",
+        description="Update an existing object.",
+        responses={
+            200: OpenApiResponse(description="Object updated successfully"),
+            400: OpenApiResponse(description="Invalid input data"),
+            404: OpenApiResponse(description="Object not found"),
+            401: OpenApiResponse(description="Authentication required"),
+            403: OpenApiResponse(description="Permission denied"),
+        },
+    ),
+    partial_update=extend_schema(
+        summary="Partial update object",
+        description="Partially update an existing object.",
+        responses={
+            200: OpenApiResponse(description="Object partially updated successfully"),
+            400: OpenApiResponse(description="Invalid input data"),
+            404: OpenApiResponse(description="Object not found"),
+            401: OpenApiResponse(description="Authentication required"),
+            403: OpenApiResponse(description="Permission denied"),
+        },
+    ),
+    destroy=extend_schema(
+        summary="Delete object",
+        description="Delete an object (soft delete if supported).",
+        responses={
+            204: OpenApiResponse(description="Object deleted successfully"),
+            404: OpenApiResponse(description="Object not found"),
+            401: OpenApiResponse(description="Authentication required"),
+            403: OpenApiResponse(description="Permission denied"),
+        },
+    ),
+)
 class BaseViewSet(LoggingMixin, viewsets.ModelViewSet):
     """
     Base viewset that provides common functionality for all API views.
@@ -245,6 +310,32 @@ class BaseViewSet(LoggingMixin, viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+    @extend_schema(
+        methods=["POST"],
+        summary="Restore object",
+        description="Restore a soft-deleted object (if soft delete is supported). Only available to authenticated users.",
+        responses={
+            200: OpenApiResponse(
+                description="Object restored successfully",
+                examples=[
+                    OpenApiExample(
+                        "Success", value={"message": "Object restored successfully"}
+                    )
+                ],
+            ),
+            400: OpenApiResponse(
+                description="Restore operation not supported or invalid request",
+                examples=[
+                    OpenApiExample(
+                        "Error", value={"error": "Restore operation not supported"}
+                    )
+                ],
+            ),
+            401: OpenApiResponse(description="Authentication required"),
+            403: OpenApiResponse(description="Permission denied"),
+            404: OpenApiResponse(description="Object not found"),
+        },
+    )
     @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated])
     def restore(self, request, pk=None):
         """
@@ -274,6 +365,24 @@ class BaseViewSet(LoggingMixin, viewsets.ModelViewSet):
             )
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="List objects (Read-only)",
+        description="Retrieve a list of objects with optional filtering and pagination.",
+        responses={
+            200: OpenApiResponse(description="List of objects retrieved successfully"),
+            400: OpenApiResponse(description="Invalid request parameters"),
+        },
+    ),
+    retrieve=extend_schema(
+        summary="Retrieve object (Read-only)",
+        description="Retrieve a specific object by ID.",
+        responses={
+            200: OpenApiResponse(description="Object retrieved successfully"),
+            404: OpenApiResponse(description="Object not found"),
+        },
+    ),
+)
 class BaseReadOnlyViewSet(LoggingMixin, viewsets.ReadOnlyModelViewSet):
     """
     Base viewset for read-only operations.

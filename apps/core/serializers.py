@@ -1,14 +1,20 @@
 # apps/core/serializers.py
 
 """
-Base serializers with security features for the e-commerce application.
-Provides common functionality and security features for API serialization.
+Base serializers for the e-commerce application.
+Provides common serialization functionality for all models.
 """
 
 import html
 import re
+from typing import Any
 
+from django.contrib.auth import get_user_model
 from rest_framework import serializers
+
+from .models import AuditStampedModelBase as BaseModel
+
+User = get_user_model()
 
 
 class SecurityMixin:
@@ -18,7 +24,7 @@ class SecurityMixin:
     """
 
     @staticmethod
-    def sanitize_input(value):
+    def sanitize_input(value: str) -> str:
         """
         Basic input sanitization to prevent XSS attacks.
         Removes potentially dangerous HTML tags and scripts.
@@ -42,7 +48,7 @@ class SecurityMixin:
 
         return value.strip()
 
-    def validate_text_field(self, value):
+    def validate_text_field(self, value: str) -> str:
         """
         Common validation for text fields.
         Sanitizes input and checks for minimum length.
@@ -63,16 +69,12 @@ class RoleBasedFieldMixin:
     # Define sensitive fields that should be hidden from regular users
     sensitive_fields = ["created_by", "updated_by", "is_active"]
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.context = kwargs.get("context", {})
-
     def get_fields(self):
         """
         Override to dynamically show/hide fields based on user role.
         """
-        fields = super().get_fields()
-        request = self.context.get("request")
+        fields = super().get_fields()  # type: ignore
+        request = self.context.get("request") if hasattr(self, "context") else None
 
         # If no request context, return all fields
         if not request:
@@ -100,23 +102,18 @@ class BaseModelSerializer(
     Includes security features, audit field handling, and consistent formatting.
     """
 
-    # Read-only UUID field
-    id = serializers.UUIDField(read_only=True)
-
-    # Read-only timestamp fields with custom formatting
-    created_at = serializers.DateTimeField(
-        read_only=True, output_format="%Y-%m-%d %H:%M:%S"
+    created_at = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S", read_only=True)
+    updated_at = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S", read_only=True)
+    created_by = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all(), required=False, allow_null=True
     )
-    updated_at = serializers.DateTimeField(
-        read_only=True, output_format="%Y-%m-%d %H:%M:%S"
+    updated_by = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all(), required=False, allow_null=True
     )
-
-    # User fields - shown only to staff users
-    created_by = serializers.StringRelatedField(read_only=True)
-    updated_by = serializers.StringRelatedField(read_only=True)
 
     class Meta:
         # Common fields that should be included in all serializers
+        model = BaseModel
         fields = [
             "id",
             "created_at",
@@ -125,15 +122,42 @@ class BaseModelSerializer(
             "updated_by",
             "is_active",
         ]
-        read_only_fields = [
-            "id",
-            "created_at",
-            "updated_at",
-            "created_by",
-            "updated_by",
-        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
 
-    def validate(self, attrs):
+    def create(self, validated_data: dict[str, Any]) -> BaseModel:
+        """
+        Create a new instance with the current user as the creator.
+        """
+        user = self.context.get("request").user if self.context.get("request") else None
+        if user and user.is_authenticated:
+            validated_data["created_by"] = user
+            validated_data["updated_by"] = user
+        return super().create(validated_data)
+
+    def update(self, instance: BaseModel, validated_data: dict[str, Any]) -> BaseModel:
+        """
+        Update an instance with the current user as the last updater.
+        """
+        user = self.context.get("request").user if self.context.get("request") else None
+        if user and user.is_authenticated:
+            validated_data["updated_by"] = user
+        return super().update(instance, validated_data)
+
+    def to_representation(self, instance: BaseModel) -> dict[str, Any]:
+        """
+        Customize the representation of the instance.
+        """
+        representation = super().to_representation(instance)
+
+        # Add user details if they exist
+        if instance.created_by:
+            representation["created_by"] = str(instance.created_by)
+        if instance.updated_by:
+            representation["updated_by"] = str(instance.updated_by)
+
+        return representation
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         """
         Global validation that applies to all serializers.
         """
@@ -144,44 +168,13 @@ class BaseModelSerializer(
 
         return super().validate(attrs)
 
-    def create(self, validated_data):
-        """
-        Override create to automatically set created_by field.
-        """
-        request = self.context.get("request")
-        if request and request.user and request.user.is_authenticated:
-            validated_data["created_by"] = request.user
-
-        return super().create(validated_data)
-
-    def update(self, instance, validated_data):
-        """
-        Override update to automatically set updated_by field.
-        """
-        request = self.context.get("request")
-        if request and request.user and request.user.is_authenticated:
-            validated_data["updated_by"] = request.user
-
-        return super().update(instance, validated_data)
-
-    def to_representation(self, instance):
-        """
-        Customize the serialized output.
-        """
-        data = super().to_representation(instance)
-
-        # Add additional metadata for API responses
-        data["_meta"] = {"model": instance.__class__.__name__.lower(), "version": "v1"}
-
-        return data
-
 
 class SanitizedCharField(serializers.CharField):
     """
     Custom CharField that automatically sanitizes input.
     """
 
-    def to_internal_value(self, data):
+    def to_internal_value(self, data: str) -> str:
         """Override to sanitize input automatically."""
         data = super().to_internal_value(data)
         return SecurityMixin.sanitize_input(data)
@@ -192,7 +185,7 @@ class SanitizedTextField(serializers.CharField):
     Custom TextField for longer content with enhanced sanitization.
     """
 
-    def to_internal_value(self, data):
+    def to_internal_value(self, data: str) -> str:
         """Override to sanitize input automatically."""
         data = super().to_internal_value(data)
         return SecurityMixin.sanitize_input(data)
@@ -210,7 +203,7 @@ class ProductSerializer(BaseModelSerializer):
         model = Product
         fields = BaseModelSerializer.Meta.fields + ['name', 'description', 'price']
 
-    def validate_price(self, value):
+    def validate_price(self, value: float) -> float:
         if value <= 0:
             raise serializers.ValidationError("Price must be greater than zero.")
         return value

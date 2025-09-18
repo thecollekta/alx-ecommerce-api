@@ -9,73 +9,50 @@ It's particularly useful for audit logging and automatic user tracking in models
 """
 
 import threading
+from collections.abc import Callable
 
 from django.http import HttpRequest, HttpResponse
-from django.utils.deprecation import MiddlewareMixin
+
+# Thread local storage for the current request
+_request = threading.local()
 
 
-class CurrentUserMiddleware(MiddlewareMixin):
+class CurrentUserMiddleware:
+    """Middleware to make the current user and request available in models."""
+
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        # Set the current request and user in thread local storage
+        _request.user = getattr(request, "user", None)
+        _request.request = request
+
+        try:
+            response = self.get_response(request)
+            return response
+        finally:
+            # Clean up after the response is processed
+            if hasattr(_request, "user"):
+                del _request.user
+            if hasattr(_request, "request"):
+                del _request.request
+
+
+def get_current_user():
     """
-    Middleware to store current user in thread-local storage.
-
-    This middleware enables automatic user tracking in models by storing the
-    current user in thread-local storage at the beginning of each request.
-    The stored user is automatically cleaned up after the request is processed.
-
-    The middleware is used by `AuditStampedModelBase` to automatically track
-    who created/updated records without explicitly passing user context.
+    Get the current user from thread local storage.
+    Returns None if no user is logged in or if called outside of a request.
     """
+    return getattr(_request, "user", None)
 
-    _thread_local = threading.local()
 
-    def process_request(self, request: HttpRequest) -> None:
-        """
-        Store the current user in thread-local storage before request processing.
-
-        Args:
-            request: The incoming HTTP request object containing the user.
-        """
-        if hasattr(request, "user") and request.user.is_authenticated:
-            self._thread_local.django_user = request.user
-            threading.current_thread()._django_user = request.user
-
-    def process_response(
-        self, request: HttpRequest, response: HttpResponse
-    ) -> HttpResponse:
-        """
-        Clean up thread-local storage after request processing.
-
-        Args:
-            request: The HTTP request object.
-            response: The HTTP response object.
-
-        Returns:
-            The HTTP response object.
-        """
-        self._cleanup_thread_local()
-        return response
-
-    def process_exception(
-        self, request: HttpRequest, exception: Exception
-    ) -> HttpResponse | None:
-        """
-        Clean up thread-local storage if an exception occurs.
-
-        Args:
-            request: The HTTP request object.
-            exception: The exception that was raised.
-
-        Returns:
-            None to allow other exception middleware to process the exception.
-        """
-        self._cleanup_thread_local()
-        return None
-
-    def _cleanup_thread_local(self) -> None:
-        """Remove the user from thread-local storage if it exists."""
-        if hasattr(self._thread_local, "django_user"):
-            delattr(self._thread_local, "django_user")
-            delattr(threading.current_thread(), "_django_user")
+def get_current_request():
+    """
+    Get the current request from thread local storage.
+    Returns None if called outside of a request.
+    """
+    return getattr(_request, "request", None)
 
 
 class PerformanceMiddleware:
