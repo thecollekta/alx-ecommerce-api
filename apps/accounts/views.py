@@ -25,10 +25,7 @@ from apps.accounts.serializers import (
     UserProfileSerializer,
     UserRegistrationSerializer,
 )
-from apps.core.throttling import (
-    CreateAccountRateThrottle,
-    LoginRateThrottle,
-)
+from apps.core.throttling import CreateAccountRateThrottle, LoginRateThrottle
 from apps.core.views import BaseViewSet
 
 logger = structlog.get_logger(__name__)

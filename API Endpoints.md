@@ -1095,7 +1095,7 @@ Content-Transfer-Encoding: 7bit
 
 
 
-&nbsp;           <p>You're receiving this email because you requested a password reset for your ALX E-Commerce account.</p>        
+&nbsp;           <p>You're receiving this email because you requested a password reset for your ALX E-Commerce account.</p>
 
 
 
@@ -1121,7 +1121,7 @@ Content-Transfer-Encoding: 7bit
 
 
 
-&nbsp;           <p>If you didn't request this password reset, please ignore this email. Your password will remain unchanged.      
+&nbsp;           <p>If you didn't request this password reset, please ignore this email. Your password will remain unchanged.
 
 &nbsp;           </p>
 
@@ -1338,4 +1338,3 @@ Response body
   **"access": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU4MTQ2NDYxLCJpYXQiOjE3NTgxMzIwNjEsImp0aSI6IjgwZGM1NjU4YTU5NjRmNTY5YzU2ZDk0Yzg3MWFlZWI0IiwidXNlcl9pZCI6IjI1ZmUwMmMzLWEzY2UtNGMzNi1iNWMzLTMxNTZlZDkwNzg1OCJ9.C9IE0ToYbz1u2WrMHpc6RQVhIsrChbS\_MXfrHoSpotw",**
 
   **"refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc1ODIxODQ2MSwiaWF0IjoxNzU4MTMyMDYxLCJqdGkiOiI2ZGYyZDZiYzZkNWY0ZTZkYWM2NDJlZGU4ZWE5MTA0NSIsInVzZXJfaWQiOiIyNWZlMDJjMy1hM2NlLTRjMzYtYjVjMy0zMTU2ZWQ5MDc4NTgifQ.W96cvY07v1RZzxdmV68vMTrxGk\_t2f6y9GFYvWZKPy8**
-

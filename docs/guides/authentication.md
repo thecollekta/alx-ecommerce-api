@@ -149,7 +149,7 @@ Content-Type: application/json
 
 ### Refresh Token Request
 
-```json 
+```json
 {
   "refresh": "your_refresh_token_here"
 }
@@ -278,7 +278,7 @@ Content-Transfer-Encoding: 7bit
         <div class="content">
             <p>Hello Kwame Nkrumah,</p>
 
-            <p>You're receiving this email because you requested a password reset for your ALX E-Commerce account.</p>        
+            <p>You're receiving this email because you requested a password reset for your ALX E-Commerce account.</p>
 
             <p>Please click the button below to reset your password:</p>
 
@@ -291,7 +291,7 @@ Content-Transfer-Encoding: 7bit
 
             <p>This link will expire in 24 hours for security reasons.</p>
 
-            <p>If you didn't request this password reset, please ignore this email. Your password will remain unchanged.      
+            <p>If you didn't request this password reset, please ignore this email. Your password will remain unchanged.
             </p>
 
             <p>Thanks,<br>The ALX E-Commerce Team</p>

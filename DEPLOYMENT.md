@@ -184,7 +184,7 @@ upstream ecommerce {
 server {
     listen 80;
     server_name yourdomain.com www.yourdomain.com;
-    
+
     location / {
         return 301 https://$host$request_uri;
     }
@@ -197,10 +197,10 @@ server {
 server {
     listen 443 ssl http2;
     server_name yourdomain.com www.yourdomain.com;
-    
+
     ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
-    
+
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_prefer_server_ciphers on;
     ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384;
@@ -208,10 +208,10 @@ server {
     ssl_session_cache shared:SSL:10m;
     ssl_stapling on;
     ssl_stapling_verify on;
-    
+
     access_log /var/log/nginx/ecommerce.access.log;
     error_log /var/log/nginx/ecommerce.error.log;
-    
+
     location / {
         proxy_set_header Host $http_host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -219,13 +219,13 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_pass http://ecommerce;
     }
-    
+
     location /static/ {
         alias /opt/ecommerce/static/;
         expires 30d;
         access_log off;
     }
-    
+
     location /media/ {
         alias /opt/ecommerce/media/;
         expires 30d;

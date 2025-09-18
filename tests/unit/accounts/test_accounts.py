@@ -29,7 +29,7 @@ class UserRegistrationTests(APITestCase):
         response = self.client.post(self.url, self.valid_payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(User.objects.count(), 1)
-        self.assertEqual(User.objects.get().email, "kwame.nkrumah@ghana.com")  # type: ignore
+        self.assertEqual(User.objects.get().email, "kwame.nkrumah@ghana.com")
         self.assertEqual(User.objects.get().account_status, "PENDING")  # type: ignore
 
     def test_duplicate_email_registration(self):

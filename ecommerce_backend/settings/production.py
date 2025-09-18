@@ -177,7 +177,9 @@ if "SENTRY_DSN" in env:  # noqa: F405
         dsn=env("SENTRY_DSN"),  # noqa: F405
         integrations=[DjangoIntegration()],
         send_default_pii=True,
-        environment=env("ENVIRONMENT", default="production"),  # noqa: F405 # type: ignore
+        environment=env(  # noqa: F405
+            "ENVIRONMENT", default="production"
+        ),  # noqa: F405 # type: ignore
     )
 
 # Performance optimizations

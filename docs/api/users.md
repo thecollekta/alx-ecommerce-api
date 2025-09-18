@@ -441,7 +441,7 @@ Error: Internal Server Error (500)
 ```json
 {
   "detail": "An error occurred while activating the account"
-} 
+}
 ```
 
 ### Suspend User (Admin)

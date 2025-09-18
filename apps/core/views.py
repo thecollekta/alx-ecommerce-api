@@ -8,8 +8,12 @@ Provides a foundation for all API views in the e-commerce application.
 import structlog
 from django.db import transaction
 from django.utils import timezone
-from drf_spectacular.utils import (OpenApiExample, OpenApiResponse,
-                                   extend_schema, extend_schema_view)
+from drf_spectacular.utils import (
+    OpenApiExample,
+    OpenApiResponse,
+    extend_schema,
+    extend_schema_view,
+)
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated

@@ -14,7 +14,7 @@
 # B9xx - OWASP Top 10 2017
 # B1xxx - OWASP Top 10 2021
 
-tests: 
+tests:
   - B1
   - B3
   - B4
